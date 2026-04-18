@@ -59,5 +59,4 @@ Chế độ phát âm thanh tự động, giúp bạn nghe từ vựng và câu 
 
 ---
 
-[![Tải về ngay](https://img.shields.io/badge/Tải_về_cho_Windows-Download-blue?style=for-the-badge&logo=windows)]()
-git clone [https://github.com/TEN-GITHUB-CUA-BAN/TEN-REPO-CUA-BAN.git](https://github.com/TEN-GITHUB-CUA-BAN/TEN-REPO-CUA-BAN.git)
+[![Tải về ngay](https://img.shields.io/badge/Tải_về_cho_Windows-Download-blue?style=for-the-badge&logo=windows)](sha256:c9a10c647e2ce6aba54d14554ff94a9167ac36a07fecdb19db772723154aa070)
