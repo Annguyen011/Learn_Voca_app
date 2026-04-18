@@ -59,4 +59,4 @@ Chế độ phát âm thanh tự động, giúp bạn nghe từ vựng và câu 
 
 ---
 
-[![Tải về ngay](https://img.shields.io/badge/Tải_về_cho_Windows-Download-blue?style=for-the-badge&logo=windows)](sha256:c9a10c647e2ce6aba54d14554ff94a9167ac36a07fecdb19db772723154aa070)
+[![Tải về ngay](https://img.shields.io/badge/Tải_về_cho_Windows-Download-blue?style=for-the-badge&logo=windows)](https://github.com/Annguyen011/Learn_Voca_app/releases/tag/v1.0.0)
