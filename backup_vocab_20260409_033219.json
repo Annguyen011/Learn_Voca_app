@@ -1,0 +1,622 @@
+{
+    "vocab_data": {
+        "change": {
+            "sentence": "The product is undergoing a change in order to improve it.",
+            "pos": "Động từ | Danh từ",
+            "vn_meaning": "thay đổi",
+            "last_studied": "2026-04-09 02:57",
+            "study_count": 2,
+            "custom_sentence": ""
+        },
+        "adult": {
+            "sentence": "an adult human, animal, or plant",
+            "pos": "Động từ | Tính từ | Danh từ",
+            "vn_meaning": "người lớn",
+            "last_studied": "2026-04-09 02:58",
+            "study_count": 2,
+            "custom_sentence": ""
+        },
+        "have": {
+            "sentence": "I have a house and a car.",
+            "pos": "Động từ | Danh từ",
+            "vn_meaning": "có",
+            "last_studied": "2026-04-09 02:58",
+            "study_count": 2,
+            "custom_sentence": ""
+        },
+        "about": {
+            "sentence": "After my bout with Guillan-Barre Syndrome, it took me 6 months to be up and about again.",
+            "pos": "Giới từ | Tính từ | Trạng từ",
+            "vn_meaning": "Về",
+            "last_studied": "2026-04-09 03:04",
+            "study_count": 2,
+            "custom_sentence": ""
+        },
+        "cash": {
+            "sentence": "After you bounced those checks last time, they want to be paid in cash.",
+            "pos": "Động từ | Danh từ | Tính từ",
+            "vn_meaning": "tiền mặt",
+            "last_studied": "2026-04-09 02:57",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "pay": {
+            "sentence": "Many employers have rules designed to keep employees from comparing their pays.",
+            "pos": "Tính từ | Động từ | Danh từ",
+            "vn_meaning": "chi trả",
+            "last_studied": "2026-04-09 02:57",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "hub": {
+            "sentence": "Hong Kong International Airport is one of the most important air traffic hubs in Asia.",
+            "pos": "Danh từ",
+            "vn_meaning": "trung tâm",
+            "last_studied": "2026-04-09 02:57",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "instant": {
+            "sentence": "She paused for only an instant, which was just enough time for John to change the subject.",
+            "pos": "Danh từ",
+            "vn_meaning": "lập tức",
+            "last_studied": "2026-04-09 03:13",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "abide by": {
+            "sentence": "The two parties agreed to abide by the judge's decision.",
+            "pos": "Động từ",
+            "vn_meaning": "tuân thủ",
+            "last_studied": "2026-04-09 03:04",
+            "study_count": 1,
+            "custom_sentence": "abide by, abide by"
+        },
+        "agreement": {
+            "sentence": "According to the agreement, the caterer will also supply the flowers.",
+            "pos": "Danh từ",
+            "vn_meaning": "hợp đồng, thỏa thuận",
+            "last_studied": "2026-04-09 03:18",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "assurance": {
+            "sentence": "The sales associate gave his assurance that the missing part would be replaced.",
+            "pos": "Danh từ",
+            "vn_meaning": "sự đảm bảo",
+            "last_studied": "2026-04-09 03:10",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "cancellation": {
+            "sentence": "The cancellation of her flight caused her problems for the rest of the week.",
+            "pos": "Danh từ",
+            "vn_meaning": "sự hủy bỏ",
+            "last_studied": "2026-04-09 03:18",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "determine": {
+            "sentence": "After reading the contract, I was still unable to determine if our company was liable for damages.",
+            "pos": "Động từ",
+            "vn_meaning": "xác định, quyết định",
+            "last_studied": "2026-04-09 03:18",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "engage": {
+            "sentence": "He engaged us in a fascinating discussion about current business law.",
+            "pos": "Động từ",
+            "vn_meaning": "tham gia, thu hút",
+            "last_studied": "2026-04-09 03:18",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "establish": {
+            "sentence": "Through her many books and interviews, Dr. Hopper established herself as an authority on teenagers.",
+            "pos": "Động từ",
+            "vn_meaning": "thiết lập, thành lập",
+            "last_studied": "2026-04-09 03:19",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "obligate": {
+            "sentence": "The contractor was obligated by the contract to work 40 hours a week.",
+            "pos": "Động từ",
+            "vn_meaning": "bắt buộc, ép buộc",
+            "last_studied": "2026-04-09 03:14",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "party": {
+            "sentence": "The parties agreed to a settlement in their contract dispute.",
+            "pos": "Danh từ",
+            "vn_meaning": "bên, phe (trong hợp đồng)",
+            "last_studied": "2026-04-09 03:19",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "provision": {
+            "sentence": "The contract contains a provision to deal with how payments are made if John loses his job.",
+            "pos": "Danh từ",
+            "vn_meaning": "điều khoản",
+            "last_studied": "2026-04-09 03:19",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "resolve": {
+            "sentence": "The mediator was able to resolve the problem to everyone's satisfaction.",
+            "pos": "Động từ",
+            "vn_meaning": "giải quyết",
+            "last_studied": "2026-04-09 03:25",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "specific": {
+            "sentence": "The customer's specific complaint was not addressed in his e-mail.",
+            "pos": "Tính từ",
+            "vn_meaning": "cụ thể, riêng biệt",
+            "last_studied": "2026-04-09 03:25",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "attract": {
+            "sentence": "The new advertising attracts the wrong kind of customer into the store.",
+            "pos": "Động từ",
+            "vn_meaning": "thu hút",
+            "last_studied": "2026-04-09 03:25",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "compare": {
+            "sentence": "The price for this brand is high compared to the other brands on the market.",
+            "pos": "Động từ",
+            "vn_meaning": "so sánh",
+            "last_studied": "2026-04-09 03:25",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "competition": {
+            "sentence": "In the struggle to buy cheap cars, the competition is fierce.",
+            "pos": "Danh từ",
+            "vn_meaning": "sự cạnh tranh",
+            "last_studied": "2026-04-09 03:14",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "consume": {
+            "sentence": "The business plans consumed all of Fritz's attention this fall.",
+            "pos": "Động từ",
+            "vn_meaning": "tiêu thụ, tiêu hao",
+            "last_studied": "2026-04-09 03:14",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "convince": {
+            "sentence": "The salesman convinced his customer to buy his entire inventory of pens.",
+            "pos": "Động từ",
+            "vn_meaning": "thuyết phục",
+            "last_studied": "2026-04-09 03:14",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "currently": {
+            "sentence": "Currently, customers are demanding big discounts for bulk orders.",
+            "pos": "Trạng từ",
+            "vn_meaning": "hiện tại",
+            "last_studied": "2026-04-09 03:18",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "fad": {
+            "sentence": "The mini dress was a fad once thought to be finished, but now it is making a comeback.",
+            "pos": "Danh từ",
+            "vn_meaning": "mốt nhất thời",
+            "last_studied": "2026-04-09 03:15",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "inspiration": {
+            "sentence": "His work is an inspiration to the marketing department.",
+            "pos": "Danh từ",
+            "vn_meaning": "sự truyền cảm hứng",
+            "last_studied": "2026-04-09 03:25",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "market": {
+            "sentence": "The market for brightly colored clothing was brisk last year.",
+            "pos": "Danh từ",
+            "vn_meaning": "thị trường",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "persuasion": {
+            "sentence": "The seminar teaches techniques of persuasion to increase sales.",
+            "pos": "Danh từ",
+            "vn_meaning": "sự thuyết phục",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "productive": {
+            "sentence": "Alonzo is excited about his productive staff.",
+            "pos": "Tính từ",
+            "vn_meaning": "sản xuất nhiều, năng suất",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "satisfaction": {
+            "sentence": "Your satisfaction is guaranteed or you'll get your money back.",
+            "pos": "Danh từ",
+            "vn_meaning": "sự hài lòng",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "characteristic": {
+            "sentence": "One characteristic of the store is that it is slow in mailing refund checks.",
+            "pos": "Danh từ | Tính từ",
+            "vn_meaning": "đặc điểm, đặc trưng",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "consequence": {
+            "sentence": "The consequence of not following the service instructions for your car is that the warranty is invalidated.",
+            "pos": "Danh từ",
+            "vn_meaning": "hậu quả, kết quả",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "consider": {
+            "sentence": "After considering all the options, Della decided to buy a used car.",
+            "pos": "Động từ",
+            "vn_meaning": "cân nhắc, xem xét",
+            "last_studied": "2026-04-09 03:10",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "cover": {
+            "sentence": "Will my medical insurance cover this surgery?",
+            "pos": "Động từ | Danh từ",
+            "vn_meaning": "bao bọc, bao gồm, chi trả",
+            "last_studied": "2026-04-09 03:18",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "expiration": {
+            "sentence": "Have you checked the expiration date on this yogurt?",
+            "pos": "Danh từ",
+            "vn_meaning": "sự hết hạn",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "frequently": {
+            "sentence": "Appliances frequently come with a one-year warranty.",
+            "pos": "Trạng từ",
+            "vn_meaning": "thường xuyên",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "imply": {
+            "sentence": "The guarantee on the iPod implied that all damages were covered under warranty for one year.",
+            "pos": "Động từ",
+            "vn_meaning": "ngụ ý, ám chỉ",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "promise": {
+            "sentence": "A warranty is a promise the manufacturer makes to the consumer.",
+            "pos": "Động từ | Danh từ",
+            "vn_meaning": "hứa, lời hứa",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "protect": {
+            "sentence": "Consumer laws are designed to protect the public against unscrupulous vendors.",
+            "pos": "Động từ",
+            "vn_meaning": "bảo vệ",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "reputation": {
+            "sentence": "The company knew that the reputation of its products was the most important asset it had.",
+            "pos": "Danh từ",
+            "vn_meaning": "danh tiếng",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "require": {
+            "sentence": "The law requires that each item clearly display the warranty information.",
+            "pos": "Động từ",
+            "vn_meaning": "yêu cầu, đòi hỏi",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "variety": {
+            "sentence": "There's a variety of standard terms that you'll find in warranties.",
+            "pos": "Danh từ",
+            "vn_meaning": "sự đa dạng",
+            "last_studied": "2026-04-09 03:04",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "address": {
+            "sentence": "Marco's business plan addresses the needs of small business owners.",
+            "pos": "Động từ | Danh từ",
+            "vn_meaning": "giải quyết, địa chỉ",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "avoid": {
+            "sentence": "To avoid going out of business, owners should prepare a proper business plan.",
+            "pos": "Động từ",
+            "vn_meaning": "tránh",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "demonstrate": {
+            "sentence": "Alban's business plan demonstrated that he had put a lot of thought into making his dream a reality.",
+            "pos": "Động từ",
+            "vn_meaning": "chứng minh, giải thích",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "develop": {
+            "sentence": "Lily developed her ideas into a business plan by taking a class at the community college.",
+            "pos": "Động từ",
+            "vn_meaning": "phát triển",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "evaluate": {
+            "sentence": "It's important to evaluate your competition when making a business plan.",
+            "pos": "Động từ",
+            "vn_meaning": "đánh giá",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "gather": {
+            "sentence": "We gathered information for our plan from many sources.",
+            "pos": "Động từ",
+            "vn_meaning": "tập hợp, thu thập",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "offer": {
+            "sentence": "Devon accepted our offer to write the business plan.",
+            "pos": "Động từ | Danh từ",
+            "vn_meaning": "đề nghị, cung cấp",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "primarily": {
+            "sentence": "We are primarily concerned with convincing the board of directors to apply for a loan.",
+            "pos": "Trạng từ",
+            "vn_meaning": "chủ yếu",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "risk": {
+            "sentence": "The primary risk for most start-up businesses is insufficient capital.",
+            "pos": "Danh từ | Động từ",
+            "vn_meaning": "nguy cơ, rủi ro",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "strategy": {
+            "sentence": "A business plan is a strategy for running a business and avoiding problems.",
+            "pos": "Danh từ",
+            "vn_meaning": "chiến lược",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "strong": {
+            "sentence": "Even in a strong economic climate, many businesses fail.",
+            "pos": "Tính từ",
+            "vn_meaning": "mạnh mẽ",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "substitution": {
+            "sentence": "Your substitution of fake names for real ones makes the document seem insincere.",
+            "pos": "Danh từ",
+            "vn_meaning": "sự thay thế",
+            "last_studied": "2026-04-09 03:04",
+            "study_count": 1,
+            "custom_sentence": ""
+        },
+        "accommodate": {
+            "sentence": "The meeting room was large enough to accommodate the various needs of the groups using it.",
+            "pos": "Động từ",
+            "vn_meaning": "cung cấp chỗ, đáp ứng",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "arrangement": {
+            "sentence": "The travel arrangements were taken care of by Sara, Mr. Billing's capable assistant.",
+            "pos": "Danh từ",
+            "vn_meaning": "sự sắp xếp, sự thu xếp",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "association": {
+            "sentence": "Membership in a trade or professional association provides business contacts and mutual support.",
+            "pos": "Danh từ",
+            "vn_meaning": "hiệp hội, đoàn thể",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "attend": {
+            "sentence": "We expect more than 100 members to attend the annual meeting.",
+            "pos": "Động từ",
+            "vn_meaning": "tham dự",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "get in touch": {
+            "sentence": "As soon as we arrive at the hotel, we will get in touch with the manager about the unexpected guests.",
+            "pos": "Động từ",
+            "vn_meaning": "liên lạc, liên hệ",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "hold": {
+            "sentence": "This meeting room holds 400 people comfortably.",
+            "pos": "Động từ",
+            "vn_meaning": "tổ chức, chứa đựng",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "location": {
+            "sentence": "The location of the meeting was changed from the Red room to the Green room.",
+            "pos": "Danh từ",
+            "vn_meaning": "địa điểm",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "overcrowded": {
+            "sentence": "To avoid being overcrowded, we limited the number of guests that members could bring.",
+            "pos": "Tính từ",
+            "vn_meaning": "quá đông đúc",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "register": {
+            "sentence": "According to the register, more than 250 people attended the afternoon seminar.",
+            "pos": "Động từ | Danh từ",
+            "vn_meaning": "đăng ký, sổ đăng ký",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "select": {
+            "sentence": "The conference participants were able to select from various breakout sessions.",
+            "pos": "Động từ",
+            "vn_meaning": "lựa chọn",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "session": {
+            "sentence": "The morning sessions tend to fill up first, so sign in early.",
+            "pos": "Danh từ",
+            "vn_meaning": "phiên, kỳ, buổi họp",
+            "last_studied": "",
+            "study_count": 0,
+            "custom_sentence": ""
+        },
+        "take part in": {
+            "sentence": "We could not get enough people to take part in the meeting, so we canceled it.",
+            "pos": "Động từ",
+            "vn_meaning": "tham gia",
+            "last_studied": "2026-04-09 03:04",
+            "study_count": 1,
+            "custom_sentence": ""
+        }
+    },
+    "daily_study_tracker": {
+        "2026-04-08": [
+            "attend",
+            "he",
+            "helo"
+        ]
+    },
+    "daily_tracker": {
+        "2026-04-08": [
+            "he",
+            "helo",
+            "attend",
+            "smile",
+            "accommodate",
+            "blue",
+            "hello",
+            "change",
+            "adult",
+            "have",
+            "about"
+        ],
+        "accommodate": [
+            "2026-04-08"
+        ],
+        "attend": [
+            "2026-04-08"
+        ],
+        "smile": [
+            "2026-04-08"
+        ],
+        "hello": [
+            "2026-04-08"
+        ],
+        "blue": [
+            "2026-04-08"
+        ],
+        "2026-04-09": [
+            "change",
+            "adult",
+            "have",
+            "about",
+            "cash",
+            "pay",
+            "orgrance",
+            "hub",
+            "instant",
+            "variety",
+            "take part in",
+            "substitution",
+            "abide by",
+            "consider",
+            "agreement",
+            "assurance",
+            "cancellation",
+            "determine",
+            "engage",
+            "obligate",
+            "competition",
+            "consume",
+            "convince",
+            "cover",
+            "currently",
+            "fad",
+            "establish",
+            "party",
+            "provision",
+            "resolve",
+            "specific",
+            "attract",
+            "compare",
+            "inspiration"
+        ]
+    },
+    "phrase_data": {}
+}
