@@ -171,6 +171,9 @@ class DataManager:
             c.execute('''CREATE TABLE IF NOT EXISTS daily_tracker
                          (date TEXT, word TEXT, PRIMARY KEY (date, word))''')
                          
+            c.execute('''CREATE TABLE IF NOT EXISTS mistakes
+                         (word TEXT, item_type TEXT, error_count INTEGER DEFAULT 1, last_error TEXT, PRIMARY KEY (word, item_type))''')
+                         
             c.execute('''CREATE TABLE IF NOT EXISTS settings
                          (key TEXT PRIMARY KEY, value TEXT)''')
             conn.commit()
@@ -187,33 +190,436 @@ class DataManager:
             for row in c.execute("SELECT word, sentence, pos, vn_meaning, last_studied, study_count, custom_sentence, item_type, is_mastered FROM grammar"):
                 self.grammar[row[0]] = {'sentence': row[1], 'pos': row[2], 'vn_meaning': row[3], 'last_studied': row[4], 'study_count': row[5], 'custom_sentence': row[6], 'item_type': row[7], 'is_mastered': row[8]}
                 
-            if not self.grammar:
-                roadmap = [
-                    ("1. Thì Hiện tại đơn & Tiếp diễn", "I work every day. I am working now.", "Ngữ Pháp", "HTĐ: Thói quen, sự thật hiển nhiên. HTTD: Đang diễn ra.\nDấu hiệu: always, usually / now, at the moment."),
-                    ("2. Thì Quá khứ đơn & Tiếp diễn", "I worked yesterday. I was working at 8PM.", "Ngữ Pháp", "QKĐ: Chấm dứt ở QK. QKTD: Đang xảy ra tại thời điểm QK.\nDấu hiệu: yesterday, last / at that time."),
-                    ("3. Thì Hiện tại hoàn thành", "I have worked here for 5 years.", "Ngữ Pháp", "Hành động từ QK kéo dài đến hiện tại hoặc vừa mới xong.\nDấu hiệu: since, for, already, just, recently."),
-                    ("4. Thì Tương lai đơn & Tương lai gần", "I will work. I am going to work.", "Ngữ Pháp", "TLĐ: Quyết định tức thời, dự đoán. TLG: Có kế hoạch từ trước.\nDấu hiệu: tomorrow, next, plan to."),
-                    ("5. Câu Bị Động (Passive Voice)", "The report was written by him.", "Ngữ Pháp", "Nhấn mạnh đối tượng chịu tác động. Cấu trúc: S + be + V3/ed.\nMẹo TOEIC: Chú ý sau chỗ trống KHÔNG có tân ngữ -> chọn Bị động."),
-                    ("6. Danh Động Từ (Gerund) & To V", "I enjoy reading. I want to read.", "Ngữ Pháp", "Gerund (V-ing) đi sau giới từ, enjoy, mind, avoid...\nTo V đi sau want, hope, decide, plan..."),
-                    ("7. Câu Điều Kiện Loại 1 & 2", "If it rains, I will stay. If I were you, I would go.", "Ngữ Pháp", "L1: Có thể xảy ra ở HT/TL. L2: Không có thật ở HT.\nCấu trúc: If + HTĐ, TLĐ / If + QKĐ, would + V."),
-                    ("8. Mệnh Đề Quan Hệ", "The man who called you is my boss.", "Ngữ Pháp", "Dùng Who (người), Which (vật), That (cả hai), Whose (sở hữu).\nMẹo: Xác định danh từ đứng ngay trước là người hay vật."),
-                    ("9. Mệnh Đề Quan Hệ Rút Gọn", "The man calling you is my boss.", "Ngữ Pháp", "Chủ động -> V-ing. Bị động -> V3/ed.\nRất hay xuất hiện trong Part 5 & 6."),
-                    ("10. Đại Từ Nhân Xưng & Sở Hữu", "He gave his book to me.", "Ngữ Pháp", "Đại từ đóng vai trò Chủ ngữ, Tân ngữ, Tính từ sở hữu.\nCẩn thận nhầm lẫn giữa 'his', 'him', 'he'."),
-                    ("11. Đại từ phản thân", "He did it himself.", "Ngữ Pháp", "Nhấn mạnh tự ai làm việc gì. Mẹo TOEIC: Thường đứng cuối câu hoặc ngay sau Chủ ngữ. Cấu trúc 'by + oneself'."),
-                    ("12. Tính Từ & Trạng Từ", "She is a careful driver. She drives carefully.", "Ngữ Pháp", "Tính từ bổ nghĩa cho Danh từ. Trạng từ bổ nghĩa cho Động từ, Tính từ khác.\nMẹo: Sau to be/linking verb -> Tính từ. Sau V thường -> Trạng từ."),
-                    ("13. Cấu trúc So Sánh", "This is bigger than that. He is the tallest.", "Ngữ Pháp", "Hơn: short adj + er / more + long adj.\nNhất: the + short adj + est / the most + long adj."),
-                    ("14. Giới Từ Thời Gian & Nơi Chốn", "In 2023, on Monday, at 8 AM. In the box, on the table.", "Ngữ Pháp", "In + năm/tháng/mùa/không gian. On + thứ/ngày/bề mặt. At + giờ/địa điểm nhỏ."),
-                    ("15. Liên Từ Phối Hợp", "I like apples and oranges.", "Ngữ Pháp", "FANBOYS: For, And, Nor, But, Or, Yet, So.\nNối các từ hoặc mệnh đề tương đương nhau."),
-                    ("16. Liên Từ Phụ Thuộc", "Because it rained, I stayed home.", "Ngữ Pháp", "Because / Since / As -> Nguyên nhân.\nAlthough / Even though / Though -> Nhượng bộ."),
-                    ("17. Sự Hòa Hợp Chủ Vị", "The list of items is on the desk.", "Ngữ Pháp", "Động từ phải chia theo Chủ ngữ CHÍNH.\nMẹo: Bỏ qua các cụm giới từ chen giữa Chủ ngữ và Động từ."),
-                    ("18. Thể Giả Định (Subjunctive)", "I suggest that he stop smoking.", "Ngữ Pháp", "Sau các từ recommend, suggest, advise, require, request, demand... động từ mệnh đề sau luôn ở dạng Nguyên Thể (V-bare)."),
-                    ("19. Câu Hỏi Đuôi (Tag Question)", "You are a student, aren't you?", "Ngữ Pháp", "Vế trước khẳng định -> Đuôi phủ định. Ngược lại.\nLưu ý các trường hợp đặc biệt: I am -> aren't I?, Let's -> shall we?"),
-                    ("20. Cấu trúc Song Song", "She likes reading, writing, and swimming.", "Ngữ Pháp", "Các thành phần nối với nhau bởi liên từ (and, or, but) phải cùng một loại từ (cùng V-ing, cùng Noun, cùng To V...).")
-                ]
-                for w, s, p, v in roadmap:
-                    self.grammar[w] = {'sentence': s, 'pos': p, 'vn_meaning': v, 'last_studied': "", 'study_count': 0, 'custom_sentence': "", 'item_type': 'grammar', 'is_mastered': 0}
-                    conn.execute("INSERT INTO grammar (word, sentence, pos, vn_meaning, custom_sentence, last_studied, study_count, is_mastered) VALUES (?,?,?,?,?,?,?,?)", (w, s, p, v, "", "", 0, 0))
-                conn.commit()
+            roadmap = [
+                ("1. Thì Hiện tại đơn & Tiếp diễn", 
+                 "I work every day. / I am working now.", 
+                 "Ngữ Pháp", 
+                 "1. THÌ HIỆN TẠI ĐƠN (Present Simple)\n"
+                 "- Cách dùng: Diễn tả thói quen, hành động lặp đi lặp lại, chân lý, sự thật hiển nhiên hoặc lịch trình cố định.\n"
+                 "- Cấu trúc:\n"
+                 "  + Khẳng định: S + V(s/es)\n"
+                 "  + Phủ định: S + do/does + not + V\n"
+                 "  + Nghi vấn: Do/Does + S + V?\n"
+                 "- Dấu hiệu: always, usually, often, sometimes, never, every day/week...\n\n"
+                 "2. THÌ HIỆN TẠI TIẾP DIỄN (Present Continuous)\n"
+                 "- Cách dùng: Diễn tả hành động đang xảy ra tại thời điểm nói, hoặc một kế hoạch sắp xảy ra trong tương lai gần.\n"
+                 "- Cấu trúc:\n"
+                 "  + Khẳng định: S + am/is/are + V-ing\n"
+                 "  + Phủ định: S + am/is/are + not + V-ing\n"
+                 "  + Nghi vấn: Am/Is/Are + S + V-ing?\n"
+                 "- Dấu hiệu: now, right now, at the moment, at present, Look!, Listen!",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. Look! The boy (cry) _______ loudly.\n"
+                 "2. She usually (go) _______ to school by bus.\n"
+                 "3. The train (leave) _______ at 8:00 AM tomorrow.\n"
+                 "4. I (not/like) _______ drinking coffee.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("2. Thì Quá khứ đơn & Tiếp diễn", 
+                 "I worked yesterday. / I was working at 8PM.", 
+                 "Ngữ Pháp", 
+                 "1. THÌ QUÁ KHỨ ĐƠN (Past Simple)\n"
+                 "- Cách dùng: Diễn tả hành động đã xảy ra và CHẤM DỨT hoàn toàn trong quá khứ.\n"
+                 "- Cấu trúc:\n"
+                 "  + Khẳng định: S + V2/ed\n"
+                 "  + Phủ định: S + did + not + V(nguyên thể)\n"
+                 "  + Nghi vấn: Did + S + V(nguyên thể)?\n"
+                 "- Dấu hiệu: yesterday, last night/week/year, ago, in + năm trong QK.\n\n"
+                 "2. THÌ QUÁ KHỨ TIẾP DIỄN (Past Continuous)\n"
+                 "- Cách dùng: Diễn tả hành động đang xảy ra tại MỘT THỜI ĐIỂM XÁC ĐỊNH trong quá khứ, hoặc một hành động đang xảy ra thì có hành động khác xen vào (hành động xen vào dùng QKĐ).\n"
+                 "- Cấu trúc: S + was/were + V-ing\n"
+                 "- Dấu hiệu: at 8 PM yesterday, at this time last week, while, when...",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. At 8 PM yesterday, I (watch) _______ TV.\n"
+                 "2. While she was cooking, the phone (ring) _______.\n"
+                 "3. He (visit) _______ Paris in 2015.\n"
+                 "4. They (not/go) _______ to the party last night.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("3. Thì Hiện tại hoàn thành", 
+                 "I have worked here for 5 years.", 
+                 "Ngữ Pháp", 
+                 "THÌ HIỆN TẠI HOÀN THÀNH (Present Perfect)\n"
+                 "- Cách dùng:\n"
+                 "  + Hành động bắt đầu trong quá khứ và vẫn kéo dài đến hiện tại.\n"
+                 "  + Hành động vừa mới xảy ra.\n"
+                 "  + Trải nghiệm cho tới thời điểm hiện tại (thường dùng với ever/never).\n"
+                 "- Cấu trúc:\n"
+                 "  + Khẳng định: S + have/has + V3/ed\n"
+                 "  + Phủ định: S + have/has + not + V3/ed\n"
+                 "  + Nghi vấn: Have/Has + S + V3/ed?\n"
+                 "- Dấu hiệu: since, for, already, just, recently, lately, yet, so far, up to now.\n"
+                 "  + Since + mốc thời gian (since 2010).\n"
+                 "  + For + khoảng thời gian (for 5 years).",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. We (live) _______ in this city for 10 years.\n"
+                 "2. She (just/finish) _______ her homework.\n"
+                 "3. Have you (ever/eat) _______ sushi?\n"
+                 "4. They haven't arrived (yet/already) _______.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("4. Thì Tương lai đơn & Tương lai gần", 
+                 "I will help you. / I am going to buy a car.", 
+                 "Ngữ Pháp", 
+                 "1. THÌ TƯƠNG LAI ĐƠN (Future Simple)\n"
+                 "- Cách dùng: Quyết định tức thời ngay lúc nói, dự đoán không có căn cứ chắc chắn, lời hứa/yêu cầu/đề nghị.\n"
+                 "- Cấu trúc: S + will + V(nguyên thể)\n"
+                 "- Dấu hiệu: tomorrow, next..., think, believe, hope, promise.\n\n"
+                 "2. THÌ TƯƠNG LAI GẦN (Near Future)\n"
+                 "- Cách dùng: Một kế hoạch, dự định đã được lên lịch từ trước, hoặc một dự đoán CÓ CĂN CỨ ở hiện tại (ví dụ nhìn thấy mây đen dự đoán trời sắp mưa).\n"
+                 "- Cấu trúc: S + am/is/are + going to + V\n"
+                 "- Dấu hiệu: Các minh chứng rõ ràng ở hiện tại, plan, intention.",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. Look at those black clouds! It (rain) _______.\n"
+                 "2. I don't think he (pass) _______ the exam.\n"
+                 "3. A: 'I forgot my wallet.' - B: 'Don't worry, I (pay) _______ for you.'\n"
+                 "4. We (travel) _______ to Japan next month. We already bought tickets.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("5. Câu Bị Động (Passive Voice)", 
+                 "The report was written by him.", 
+                 "Ngữ Pháp", 
+                 "CÂU BỊ ĐỘNG (Passive Voice)\n"
+                 "- Cách dùng: Dùng khi muốn nhấn mạnh vào HÀNH ĐỘNG hoặc ĐỐI TƯỢNG bị tác động thay vì chủ thể gây ra hành động.\n"
+                 "- Cấu trúc chung: S + Be + V3/ed + (by + O)\n"
+                 "  (Động từ 'To be' phải được chia theo thì của câu chủ động gốc)\n"
+                 "- Cách chuyển đổi cơ bản:\n"
+                 "  + HTĐ: am/is/are + V3/ed\n"
+                 "  + QKĐ: was/were + V3/ed\n"
+                 "  + HTHT: have/has been + V3/ed\n"
+                 "  + TLĐ: will be + V3/ed\n"
+                 "  + Modal verbs: can/must/should + be + V3/ed\n"
+                 "💡 MẸO TOEIC: Nếu sau chỗ trống CÓ TÂN NGỮ (Danh từ) -> Chọn Chủ động. Nếu KHÔNG CÓ TÂN NGỮ (Giới từ, Dấu chấm) -> Chọn Bị động.",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. This house (build) _______ in 1990.\n"
+                 "2. The documents must (submit) _______ before 5 PM.\n"
+                 "3. Millions of people (speak) _______ English around the world.\n"
+                 "4. The window was (break) _______ by the boys yesterday.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("6. Danh Động Từ (Gerund) & To V", 
+                 "I enjoy reading. / I want to read.", 
+                 "Ngữ Pháp", 
+                 "1. DANH ĐỘNG TỪ (Gerund - V-ing)\n"
+                 "- Đóng vai trò như danh từ (Làm chủ ngữ, tân ngữ).\n"
+                 "- Đi sau các GIỚI TỪ (in, on, at, about, for, without...).\n"
+                 "- Đi sau các động từ: enjoy, mind, avoid, finish, consider, deny, suggest, keep...\n\n"
+                 "2. ĐỘNG TỪ NGUYÊN MẪU CÓ TO (To-V)\n"
+                 "- Chỉ mục đích (Để làm gì đó).\n"
+                 "- Đi sau các động từ: want, hope, decide, plan, need, agree, refuse, expect, promise...\n"
+                 "- Đi sau tính từ: It is difficult to learn English.\n"
+                 "💡 Lưu ý một số từ dùng được cả hai nhưng khác nghĩa: remember, forget, stop, try, regret.",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. She decided (study) _______ abroad.\n"
+                 "2. Do you mind (open) _______ the window?\n"
+                 "3. Thank you for (help) _______ me.\n"
+                 "4. Remember (lock) _______ the door before you leave.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("7. Câu Điều Kiện Loại 1 & 2", 
+                 "If it rains, I will stay. / If I were you, I would go.", 
+                 "Ngữ Pháp", 
+                 "1. LOẠI 1 (Có thật ở Hiện tại/Tương lai)\n"
+                 "- Cấu trúc: If + S + V(HTĐ), S + will/can/may + V\n"
+                 "- Ví dụ: If I have money, I will buy a car.\n\n"
+                 "2. LOẠI 2 (Không có thật ở Hiện tại)\n"
+                 "- Cấu trúc: If + S + V2/ed (To-be luôn dùng 'were'), S + would/could + V\n"
+                 "- Ví dụ: If I were you, I wouldn't do that.\n\n"
+                 "3. LOẠI 3 (Không có thật ở Quá khứ)\n"
+                 "- Cấu trúc: If + S + had + V3/ed, S + would/could have + V3/ed\n"
+                 "- Ví dụ: If she had studied harder, she would have passed.\n\n"
+                 "💡 Mệnh đề thay thế: Unless = If...not (Trừ khi).",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. If it (be) _______ sunny tomorrow, we will go camping.\n"
+                 "2. If I (know) _______ her number, I would call her now.\n"
+                 "3. He would have died if the doctor (not arrive) _______ in time.\n"
+                 "4. You won't pass the exam (if/unless) _______ you study hard.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("8. Mệnh Đề Quan Hệ", 
+                 "The man who called you is my boss.", 
+                 "Ngữ Pháp", 
+                 "MỆNH ĐỀ QUAN HỆ (Relative Clauses)\n"
+                 "- Dùng để bổ nghĩa cho danh từ đứng trước nó.\n"
+                 "1. Đại từ quan hệ:\n"
+                 "- WHO: Thay thế cho danh từ chỉ NGƯỜI (Làm Chủ ngữ hoặc Tân ngữ).\n"
+                 "- WHOM: Thay thế cho danh từ chỉ NGƯỜI (Chỉ làm Tân ngữ).\n"
+                 "- WHICH: Thay thế cho danh từ chỉ VẬT/SỰ VIỆC.\n"
+                 "- THAT: Thay thế cho cả NGƯỜI và VẬT (Không dùng trong MĐQH có dấu phẩy).\n"
+                 "- WHOSE + Noun: Chỉ sự sở hữu (Của ai/Của cái gì).\n"
+                 "2. Trạng từ quan hệ:\n"
+                 "- WHERE (= in/at/on which): Nơi chốn.\n"
+                 "- WHEN (= in/on which): Thời gian.\n"
+                 "- WHY (= for which): Lý do.",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. The girl (who/which) _______ is talking to Tom is my sister.\n"
+                 "2. This is the house (where/which) _______ I was born.\n"
+                 "3. The man (whose/whom) _______ car was stolen reported to the police.\n"
+                 "4. The book (that/who) _______ you lent me is very interesting.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("9. Mệnh Đề Quan Hệ Rút Gọn", 
+                 "The man calling you is my boss.", 
+                 "Ngữ Pháp", 
+                 "MỆNH ĐỀ QUAN HỆ RÚT GỌN (Reduced Relative Clauses)\n"
+                 "Rất hay xuất hiện trong bài thi TOEIC (Part 5 & 6).\n\n"
+                 "1. Rút gọn dạng CHỦ ĐỘNG -> Dùng V-ing\n"
+                 "- Bỏ đại từ quan hệ và động từ to-be (nếu có), chuyển động từ chính thành V-ing.\n"
+                 "- Gốc: The man who is standing there is my brother.\n"
+                 "- Rút gọn: The man standing there is my brother.\n\n"
+                 "2. Rút gọn dạng BỊ ĐỘNG -> Dùng V3/ed\n"
+                 "- Bỏ đại từ quan hệ và động từ to-be, giữ nguyên V3/ed.\n"
+                 "- Gốc: The books which were written by Nam are good.\n"
+                 "- Rút gọn: The books written by Nam are good.\n\n"
+                 "3. Rút gọn với TO-V\n"
+                 "- Khi danh từ đứng trước có các từ: the first, the last, the only, so sánh nhất...\n"
+                 "- Gốc: He was the first person who came.\n"
+                 "- Rút gọn: He was the first person to come.",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. The students (participating / participated) _______ in the event will get a gift.\n"
+                 "2. Products (making / made) _______ in Japan are of high quality.\n"
+                 "3. Neil Armstrong was the first man (walking / to walk) _______ on the moon.\n"
+                 "4. The woman (talked / talking) _______ to the manager is our new CEO.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("10. Đại Từ Nhân Xưng & Sở Hữu", 
+                 "He gave his book to me.", 
+                 "Ngữ Pháp", 
+                 "ĐẠI TỪ VÀ TÍNH TỪ SỞ HỮU\n"
+                 "1. Đại từ Nhân xưng:\n"
+                 "- Chủ ngữ (Subject): I, You, We, They, He, She, It (Đứng đầu câu, trước động từ).\n"
+                 "- Tân ngữ (Object): Me, You, Us, Them, Him, Her, It (Đứng sau động từ hoặc giới từ).\n\n"
+                 "2. Tính từ Sở hữu (Possessive Adjectives):\n"
+                 "- Luôn đứng trước một DANH TỪ để chỉ sự sở hữu.\n"
+                 "- My, Your, Our, Their, His, Her, Its (Ví dụ: my car, her dog).\n\n"
+                 "3. Đại từ Sở hữu (Possessive Pronouns):\n"
+                 "- Thay thế cho (Tính từ sở hữu + Danh từ) để tránh lặp từ.\n"
+                 "- Mine, Yours, Ours, Theirs, His, Hers.\n"
+                 "- VD: Your car is blue. Mine (My car) is red.",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. Please send the report to (he / him / his) _______.\n"
+                 "2. (They / Their / Them) _______ company is growing very fast.\n"
+                 "3. This book is not mine, it's (her / hers) _______.\n"
+                 "4. Mary told (I / me / my) _______ about the meeting.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("11. Đại từ phản thân", 
+                 "He did it himself.", 
+                 "Ngữ Pháp", 
+                 "ĐẠI TỪ PHẢN THÂN (Reflexive Pronouns)\n"
+                 "- Các từ: myself, yourself, yourselves, ourselves, themselves, himself, herself, itself.\n\n"
+                 "1. Cách dùng làm Tân ngữ:\n"
+                 "- Khi Chủ ngữ và Tân ngữ là CÙNG MỘT NGƯỜI.\n"
+                 "- VD: She looked at herself in the mirror. (Cô ấy nhìn chính cô ấy).\n\n"
+                 "2. Cách dùng để Nhấn mạnh:\n"
+                 "- Đứng ngay sau chủ ngữ hoặc cuối câu để nhấn mạnh TỰ AI ĐÓ làm việc gì.\n"
+                 "- VD: I myself fixed the car. / I fixed the car myself.\n\n"
+                 "3. Cấu trúc BY + Đại từ phản thân = On one's own = Alone\n"
+                 "- VD: He lives by himself. (Anh ấy sống một mình).",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. The CEO (himself / him) _______ welcomed the new employees.\n"
+                 "2. Did you do the homework by (you / your / yourself) _______?\n"
+                 "3. They bought (them / themselves) _______ a new house.\n"
+                 "4. She completed the project on (her / hers / her own) _______.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("12. Tính Từ & Trạng Từ", 
+                 "She is a careful driver. She drives carefully.", 
+                 "Ngữ Pháp", 
+                 "TÍNH TỪ & TRẠNG TỪ (Adjectives & Adverbs)\n"
+                 "1. Tính từ (Adjective - Adj):\n"
+                 "- Bổ nghĩa cho DANH TỪ. Đứng trước Danh từ hoặc sau Động từ to-be / Linking verbs (seem, feel, look, sound, taste, become...).\n"
+                 "- VD: It is a beautiful day. / She looks tired.\n\n"
+                 "2. Trạng từ (Adverb - Adv):\n"
+                 "- Bổ nghĩa cho ĐỘNG TỪ thường, TÍNH TỪ khác hoặc MỘT TRẠNG TỪ khác. Thường có đuôi -ly.\n"
+                 "- VD: He runs quickly. / It is extremely hot.\n"
+                 "- Lưu ý ngoại lệ: Một số tính từ có đuôi -ly: friendly, lovely, daily, weekly... Một số trạng từ không có đuôi -ly: hard, fast, late, well.\n\n"
+                 "💡 MẸO TOEIC: Giữa To-be và V3/ed/V-ing thường điền Trạng từ (VD: is currently working).",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. He speaks English very (fluent / fluently) _______.\n"
+                 "2. The soup smells (good / well) _______.\n"
+                 "3. The machine is (complete / completely) _______ broken.\n"
+                 "4. We receive a (weekly / week) _______ magazine.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("13. Cấu trúc So Sánh", 
+                 "This is bigger than that. He is the tallest.", 
+                 "Ngữ Pháp", 
+                 "SO SÁNH (Comparisons)\n"
+                 "1. So sánh Bằng (Equal):\n"
+                 "- S + V + as + Adj/Adv + as + N/Pronoun\n"
+                 "- VD: She is as tall as me.\n\n"
+                 "2. So sánh Hơn (Comparative):\n"
+                 "- Tính từ/Trạng từ NGẮN (1 âm tiết): Adj/Adv-er + than (VD: taller, faster)\n"
+                 "- Tính từ/Trạng từ DÀI (2 âm tiết trở lên): more + Adj/Adv + than (VD: more beautiful)\n"
+                 "- Đặc biệt: Nhấn mạnh so sánh hơn dùng: much, a lot, far, slightly... (VD: much better).\n\n"
+                 "3. So sánh Nhất (Superlative):\n"
+                 "- Ngắn: the + Adj/Adv-est (VD: the tallest)\n"
+                 "- Dài: the most + Adj/Adv (VD: the most difficult)\n\n"
+                 "4. Ngoại lệ quan trọng: good/well -> better -> best, bad/badly -> worse -> worst, many/much -> more -> most.",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. This is the (important) _______ decision in my life.\n"
+                 "2. Today is much (hot) _______ than yesterday.\n"
+                 "3. He runs as (fast) _______ as a tiger.\n"
+                 "4. Her English is getting (good) _______ and (good) _______.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("14. Giới Từ Thời Gian & Nơi Chốn", 
+                 "In 2023, on Monday, at 8 AM. In the box, on the table.", 
+                 "Ngữ Pháp", 
+                 "GIỚI TỪ (Prepositions)\n"
+                 "1. IN (Lớn nhất - Khoảng rộng):\n"
+                 "- Thời gian: Năm (in 2020), Tháng (in May), Mùa (in summer), Buổi trong ngày (in the morning).\n"
+                 "- Nơi chốn: Quốc gia, thành phố, khoảng không gian kín (in Vietnam, in the box).\n\n"
+                 "2. ON (Trung bình - Bề mặt):\n"
+                 "- Thời gian: Thứ trong tuần (on Monday), Ngày cụ thể (on May 5th), Ngày lễ (on Christmas Day).\n"
+                 "- Nơi chốn: Trên bề mặt (on the table), Trên đường phố (on Wall Street).\n\n"
+                 "3. AT (Nhỏ nhất - Điểm chính xác):\n"
+                 "- Thời gian: Giờ cụ thể (at 8 AM), at noon, at night, at midnight.\n"
+                 "- Nơi chốn: Địa điểm cụ thể (at school, at the airport, at 123 Main St).",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. We have a meeting _______ Monday morning.\n"
+                 "2. My birthday is _______ October.\n"
+                 "3. Please leave the document _______ my desk.\n"
+                 "4. The train leaves _______ 7:30 PM.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("15. Liên Từ Phối Hợp", 
+                 "I like apples and oranges.", 
+                 "Ngữ Pháp", 
+                 "1. LIÊN TỪ PHỐI HỢP (Coordinating Conjunctions)\n"
+                 "- Dùng để nối các từ, cụm từ, mệnh đề có TẦM QUAN TRỌNG NGANG NHAU.\n"
+                 "- Ghi nhớ quy tắc FANBOYS:\n"
+                 "  F - For (Vì), A - And (Và), N - Nor (Cũng không), B - But (Nhưng), O - Or (Hoặc), Y - Yet (Nhưng/Vậy mà), S - So (Vì vậy).\n\n"
+                 "2. LIÊN TỪ TƯƠNG QUAN (Correlative Conjunctions)\n"
+                 "- Luôn đi theo cặp:\n"
+                 "  + Both ... and ... (Cả cái này và cái kia)\n"
+                 "  + Either ... or ... (Hoặc cái này hoặc cái kia)\n"
+                 "  + Neither ... nor ... (Không cái này cũng không cái kia)\n"
+                 "  + Not only ... but also ... (Không những... mà còn...)",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. She wanted to buy the dress, (but / so) _______ she didn't have enough money.\n"
+                 "2. You can choose (either / both) _______ tea or coffee.\n"
+                 "3. (Neither / Not only) _______ John nor Mary passed the test.\n"
+                 "4. It was raining heavily, (so / for) _______ we stayed at home.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("16. Liên Từ Phụ Thuộc", 
+                 "Because it rained, I stayed home.", 
+                 "Ngữ Pháp", 
+                 "LIÊN TỪ PHỤ THUỘC (Subordinating Conjunctions)\n"
+                 "- Dùng để bắt đầu một mệnh đề phụ (mệnh đề không thể đứng độc lập) nối với mệnh đề chính.\n\n"
+                 "1. Chỉ Lý do (Bởi vì):\n"
+                 "- Because, Since, As, Now that + MỆNH ĐỀ (S + V)\n"
+                 "- Because of, Due to, Owing to + DANH TỪ/ V-ING\n\n"
+                 "2. Chỉ Nhượng bộ (Mặc dù):\n"
+                 "- Although, Even though, Though + MỆNH ĐỀ (S + V)\n"
+                 "- Despite, In spite of + DANH TỪ/ V-ING\n\n"
+                 "3. Chỉ Thời gian: When (Khi), While (Trong khi), Before, After, As soon as, Until...\n"
+                 "4. Chỉ Điều kiện: If, Unless, As long as, Provided that (Miễn là).",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. (Because / Because of) _______ the bad weather, the flight was delayed.\n"
+                 "2. (Although / Despite) _______ he was tired, he finished the work.\n"
+                 "3. Please turn off the lights (before / while) _______ you leave.\n"
+                 "4. We will start the meeting (as soon as / until) _______ the manager arrives.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("17. Sự Hòa Hợp Chủ Vị", 
+                 "The list of items is on the desk.", 
+                 "Ngữ Pháp", 
+                 "SỰ HÒA HỢP CHỦ VỊ (Subject-Verb Agreement)\n"
+                 "Động từ phải chia phù hợp với CHỦ NGỮ CHÍNH của câu.\n\n"
+                 "1. Cụm giới từ xen giữa:\n"
+                 "- The list [of items] IS on the desk. (Chủ ngữ là 'The list' - số ít).\n\n"
+                 "2. Đại từ bất định (Luôn đi với V số ít):\n"
+                 "- Everyone, someone, nobody, nothing, everything, each, every...\n"
+                 "- VD: Everyone HAS a book.\n\n"
+                 "3. Các cấu trúc với OR / NOR:\n"
+                 "- Either A or B / Neither A nor B / Not only A but also B -> Động từ chia theo B (gần động từ nhất).\n"
+                 "- VD: Neither the manager nor the workers ARE here.\n\n"
+                 "4. The number of + N số nhiều + V số ít. (Số lượng của...)\n"
+                 "   A number of + N số nhiều + V số nhiều. (Một vài...)",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. The boxes of equipment (was / were) _______ delivered yesterday.\n"
+                 "2. Each of the students (have / has) _______ a computer.\n"
+                 "3. Not only the students but also the teacher (want / wants) _______ a holiday.\n"
+                 "4. A number of questions (is / are) _______ raised in the meeting.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("18. Thể Giả Định (Subjunctive)", 
+                 "I suggest that he stop smoking.", 
+                 "Ngữ Pháp", 
+                 "THỂ GIẢ ĐỊNH (The Subjunctive Mood)\n"
+                 "Thường gặp trong bài thi TOEIC. Dùng để diễn tả một sự gợi ý, yêu cầu, mệnh lệnh.\n\n"
+                 "- Cấu trúc chung:\n"
+                 "  S1 + Động từ/Tính từ giả định + THAT + S2 + (should) + V-nguyên thể (không chia).\n\n"
+                 "1. Với Động từ giả định: suggest (gợi ý), recommend (tiến cử), advise (khuyên), request/require/ask (yêu cầu), demand (đòi hỏi), insist (khăng khăng).\n"
+                 "- VD: The doctor suggested that she TAKE a rest. (Tuyệt đối không dùng takes).\n\n"
+                 "2. Với Tính từ giả định: It is essential/important/necessary/vital/crucial + that...\n"
+                 "- VD: It is vital that he BE informed immediately. (Dùng be, không dùng is/are).",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. The manager requires that everyone (attend / attends) _______ the meeting.\n"
+                 "2. It is essential that she (is / be) _______ at the airport on time.\n"
+                 "3. I recommend that he (not sign / doesn't sign) _______ the contract yet.\n"
+                 "4. They requested that the broken parts (are replaced / be replaced) _______.\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("19. Câu Hỏi Đuôi (Tag Question)", 
+                 "You are a student, aren't you?", 
+                 "Ngữ Pháp", 
+                 "CÂU HỎI ĐUÔI (Tag Questions)\n"
+                 "- Dùng để xác nhận lại thông tin.\n"
+                 "- Nguyên tắc cơ bản: Nếu mệnh đề chính ở KHẲNG ĐỊNH, câu hỏi đuôi ở PHỦ ĐỊNH. Và ngược lại.\n"
+                 "- Mệnh đề chính dùng Trợ động từ / To-be nào thì Đuôi dùng lại từ đó. (Chủ ngữ phải là đại từ: he, she, it, they...).\n\n"
+                 "Một số trường hợp ĐẶC BIỆT:\n"
+                 "1. I am... -> aren't I?\n"
+                 "2. Let's... -> shall we?\n"
+                 "3. Câu mệnh lệnh (Open the door...) -> will you?\n"
+                 "4. Chủ ngữ là Nothing, Everything -> Đuôi dùng 'it'.\n"
+                 "5. Chủ ngữ là Nobody, Everyone -> Đuôi dùng 'they'.\n"
+                 "6. Trong câu có từ mang nghĩa phủ định (never, hardly, seldom, rarely) -> Đuôi KHẲNG ĐỊNH.",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. She is a doctor, _______ she?\n"
+                 "2. You didn't do the homework, _______ you?\n"
+                 "3. Let's go to the cinema tonight, _______?\n"
+                 "4. He never comes late, _______ he?\n"
+                 "👉 Ghi chú đáp án của bạn: "),
+
+                ("20. Cấu trúc Song Song", 
+                 "She likes reading, writing, and swimming.", 
+                 "Ngữ Pháp", 
+                 "CẤU TRÚC SONG SONG (Parallel Structure)\n"
+                 "- Khi các thành phần trong câu được nối với nhau bằng các liên từ (and, or, but) hoặc liên từ tương quan (both...and, neither...nor, either...or, not only...but also).\n"
+                 "- Các thành phần này phải CÙNG MỘT LOẠI TỪ (cùng là Danh từ, cùng Tính từ, cùng V-ing, cùng To-V...).\n\n"
+                 "Ví dụ:\n"
+                 "- Sai: She likes reading, writing, and to swim.\n"
+                 "- Đúng: She likes reading, writing, and swimming. (Cùng V-ing)\n\n"
+                 "- Sai: The work is difficult, stressful, and a danger.\n"
+                 "- Đúng: The work is difficult, stressful, and dangerous. (Cùng Tính từ)\n\n"
+                 "💡 MẸO TOEIC: Thấy 'and', 'or', 'but' thì nhìn từ đằng trước là loại từ gì để chọn từ đằng sau tương tự.",
+                 "📝 BÀI TẬP ÔN TẬP:\n"
+                 "1. He is handsome, intelligent, and (wealth / wealthy) _______.\n"
+                 "2. My hobbies are playing soccer, listening to music, and (read / reading) _______ books.\n"
+                 "3. You can either call me or (send / sending) _______ an email.\n"
+                 "4. The report needs to be clear, concise, and (accuracy / accurate) _______.\n"
+                 "👉 Ghi chú đáp án của bạn: ")
+            ]
+
+            for w, s, p, v, ex in roadmap:
+                if w not in self.grammar:
+                    self.grammar[w] = {'sentence': s, 'pos': p, 'vn_meaning': v, 'last_studied': "", 'study_count': 0, 'custom_sentence': ex, 'item_type': 'grammar', 'is_mastered': 0}
+                    conn.execute("INSERT INTO grammar (word, sentence, pos, vn_meaning, custom_sentence, last_studied, study_count, is_mastered) VALUES (?,?,?,?,?,?,?,?)", (w, s, p, v, ex, "", 0, 0))
+                else:
+                    if self.grammar[w]['vn_meaning'] != v:
+                        self.grammar[w]['vn_meaning'] = v
+                        self.grammar[w]['sentence'] = s
+                        conn.execute("UPDATE grammar SET vn_meaning=?, sentence=? WHERE word=?", (v, s, w))
+                    
+                    if not self.grammar[w]['custom_sentence'] or self.grammar[w]['custom_sentence'].strip() == "":
+                        self.grammar[w]['custom_sentence'] = ex
+                        conn.execute("UPDATE grammar SET custom_sentence=? WHERE word=?", (ex, w))
+            
+            conn.commit()
                 
             for row in c.execute("SELECT date, word FROM daily_tracker"):
                 if row[0] not in self.tracker: self.tracker[row[0]] = set()
@@ -357,6 +763,39 @@ class DataManager:
             check_date -= timedelta(days=1)
             
         return total_reps, is_withered, streak
+
+    def log_mistake(self, word, item_type):
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        def save_to_db():
+            with DB_LOCK:
+                conn = sqlite3.connect(DB_PATH)
+                c = conn.cursor()
+                res = c.execute("SELECT error_count FROM mistakes WHERE word=? AND item_type=?", (word, item_type)).fetchone()
+                if res:
+                    conn.execute("UPDATE mistakes SET error_count=?, last_error=? WHERE word=? AND item_type=?", (res[0]+1, now_str, word, item_type))
+                else:
+                    conn.execute("INSERT INTO mistakes (word, item_type, error_count, last_error) VALUES (?,?,?,?)", (word, item_type, 1, now_str))
+                conn.commit()
+                conn.close()
+        executor.submit(save_to_db)
+
+    def get_mistakes(self):
+        with DB_LOCK:
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            try: res = c.execute("SELECT word, item_type, error_count, last_error FROM mistakes ORDER BY last_error DESC").fetchall()
+            except sqlite3.OperationalError: res = []
+            conn.close()
+            return res
+            
+    def remove_mistake(self, word, item_type):
+        def save_to_db():
+            with DB_LOCK:
+                conn = sqlite3.connect(DB_PATH)
+                conn.execute("DELETE FROM mistakes WHERE word=? AND item_type=?", (word, item_type))
+                conn.commit()
+                conn.close()
+        executor.submit(save_to_db)
 
 data_manager = DataManager()
 
@@ -692,7 +1131,7 @@ class VirtualScrollList(ctk.CTkFrame):
         if not query:
             self.items = list(self.full_items)
         else:
-            self.items = [item for item in self.full_items if query in item[0] or (item[1] and query in item[1].lower())]
+            self.items = [item for item in self.full_items if query in item[0].lower() or (item[1] and query in item[1].lower())]
         self.set_sort(self.sort_criteria)
 
     def set_sort(self, criteria):
@@ -754,7 +1193,15 @@ class VirtualScrollList(ctk.CTkFrame):
                         row['_text_icon'] = t_icon
                         row['_col_icon'] = t_col
                     
-                t_word = word.capitalize()
+                if self.item_type == 'grammar':
+                    t_word = word
+                    t_vn = "📖 Chủ điểm Ngữ Pháp TOEIC"
+                else:
+                    t_word = word.capitalize()
+                    t_vn = vn_meaning.replace('\n', ' ')
+                    if len(t_vn) > 45: t_vn = t_vn[:45] + "..."
+                    else: t_vn = t_vn.capitalize() if t_vn else ""
+                    
                 if is_mastered:
                     t_word += " ✅"
                     
@@ -762,7 +1209,6 @@ class VirtualScrollList(ctk.CTkFrame):
                     row['word'].configure(text=t_word)
                     row['_text_word'] = t_word
                     
-                t_vn = vn_meaning.capitalize() if vn_meaning else ""
                 if row['_text_vn'] != t_vn:
                     row['vn'].configure(text=t_vn)
                     row['_text_vn'] = t_vn
@@ -870,6 +1316,7 @@ theme_menu.set("Giao diện")
 
 def handle_tool_menu(choice):
     if choice == "📊 Thống kê học tập": show_statistics()
+    elif choice == "📓 Sổ tay lỗi sai": MistakesWindow(app)
     elif choice == "➕ Thêm hàng loạt": open_batch_add()
     elif choice == "🖼 Tải tất cả ảnh": open_image_preloader()
     elif choice == "🛠 Công cụ dữ liệu": DataToolsDialog(app)
@@ -878,7 +1325,7 @@ def handle_tool_menu(choice):
     elif choice == "📂 Khôi phục dữ liệu": restore_data()
     tool_menu.set("⚙️ Công cụ")
 
-tool_menu = ctk.CTkOptionMenu(top_bar, values=["📊 Thống kê học tập", "➕ Thêm hàng loạt", "🖼 Tải tất cả ảnh", "🛠 Công cụ dữ liệu", "⏰ Cài đặt nhắc nhở", "💾 Sao lưu dữ liệu", "📂 Khôi phục dữ liệu"], command=handle_tool_menu, width=130, fg_color=BG_MAIN, text_color=("black", "white"), button_color=BG_MAIN, button_hover_color=HOVER_COLOR_TRANSPARENT, font=("Segoe UI", 14, "bold"))
+tool_menu = ctk.CTkOptionMenu(top_bar, values=["📊 Thống kê học tập", "📓 Sổ tay lỗi sai", "➕ Thêm hàng loạt", "🖼 Tải tất cả ảnh", "🛠 Công cụ dữ liệu", "⏰ Cài đặt nhắc nhở", "💾 Sao lưu dữ liệu", "📂 Khôi phục dữ liệu"], command=handle_tool_menu, width=130, fg_color=BG_MAIN, text_color=("black", "white"), button_color=BG_MAIN, button_hover_color=HOVER_COLOR_TRANSPARENT, font=("Segoe UI", 14, "bold"))
 tool_menu.pack(side="right", padx=5, pady=10)
 tool_menu.set("⚙️ Công cụ")
 
@@ -1006,6 +1453,47 @@ main_buddy = None  # Khởi tạo phía dưới
 
 detail_container = ctk.CTkScrollableFrame(main_view, fg_color="transparent")
 
+grammar_detail_container = ctk.CTkScrollableFrame(main_view, fg_color="transparent")
+
+g_card = ctk.CTkFrame(grammar_detail_container, corner_radius=16, fg_color=BG_CARD, border_width=1, border_color=BORDER_COLOR)
+g_card.pack(fill="x", pady=(10, 20))
+lbl_grammar_title = ctk.CTkLabel(g_card, text="", font=FONT_TITLE, text_color=COLOR_ACCENT, wraplength=700, justify="left")
+lbl_grammar_title.pack(anchor="w", padx=25, pady=(20, 5))
+lbl_grammar_stats = ctk.CTkLabel(g_card, text="", font=FONT_BODY, text_color=TEXT_SUB)
+lbl_grammar_stats.pack(anchor="w", padx=25, pady=(0, 20))
+
+th_card = ctk.CTkFrame(grammar_detail_container, corner_radius=16, fg_color=BG_CARD, border_width=1, border_color=BORDER_COLOR)
+th_card.pack(fill="x", pady=10)
+ctk.CTkLabel(th_card, text="📖 LÝ THUYẾT & CẤU TRÚC", font=("Segoe UI", 18, "bold"), text_color=COLOR_SUCCESS[0]).pack(anchor="w", padx=25, pady=(20, 10))
+txt_grammar_theory = ctk.CTkTextbox(th_card, font=FONT_BODY, height=200, fg_color=BG_MAIN, corner_radius=12, border_width=1, border_color=BORDER_COLOR)
+txt_grammar_theory.pack(fill="x", padx=25, pady=(0, 20))
+
+ex_card = ctk.CTkFrame(grammar_detail_container, corner_radius=16, fg_color=BG_CARD, border_width=1, border_color=BORDER_COLOR)
+ex_card.pack(fill="x", pady=10)
+ctk.CTkLabel(ex_card, text="💡 VÍ DỤ MINH HỌA", font=("Segoe UI", 18, "bold"), text_color=COLOR_WARNING[0]).pack(anchor="w", padx=25, pady=(20, 10))
+lbl_grammar_example = ctk.CTkLabel(ex_card, text="", font=("Segoe UI", 18, "italic"), wraplength=700, justify="left")
+lbl_grammar_example.pack(anchor="w", padx=25, pady=(0, 20))
+
+nt_card = ctk.CTkFrame(grammar_detail_container, corner_radius=16, fg_color=BG_CARD, border_width=1, border_color=BORDER_COLOR)
+nt_card.pack(fill="x", pady=10)
+ctk.CTkLabel(nt_card, text="📝 GHI CHÚ / BÀI TẬP", font=("Segoe UI", 18, "bold"), text_color=COLOR_ACCENT).pack(anchor="w", padx=25, pady=(20, 10))
+txt_grammar_notes = ctk.CTkTextbox(nt_card, font=FONT_BODY, height=150, fg_color=BG_MAIN, corner_radius=12, border_width=1, border_color=BORDER_COLOR)
+txt_grammar_notes.pack(fill="x", padx=25, pady=(0, 20))
+
+gf_btns = ctk.CTkFrame(grammar_detail_container, fg_color="transparent")
+gf_btns.pack(fill="x", pady=10)
+def save_grammar_changes():
+    if current_item and current_type == 'grammar':
+        data_manager.update_field(current_item, 'grammar', 'vn_meaning', txt_grammar_theory.get("1.0", "end-1c"))
+        data_manager.update_field(current_item, 'grammar', 'custom_sentence', txt_grammar_notes.get("1.0", "end-1c"))
+        messagebox.showinfo("OK", "Đã lưu thay đổi Ngữ Pháp!")
+btn_grammar_save = ctk.CTkButton(gf_btns, text="💾 Lưu thay đổi", height=40, font=("Segoe UI", 15, "bold"), fg_color=COLOR_ACCENT, hover_color=COLOR_ACCENT_HOVER, command=save_grammar_changes)
+btn_grammar_save.pack(side="left")
+
+check_g_mastered_var = ctk.IntVar()
+chk_g_mastered = ctk.CTkCheckBox(gf_btns, text="Đã nắm vững", variable=check_g_mastered_var, command=lambda: toggle_mastered(), font=("Segoe UI", 15, "bold"), text_color=COLOR_SUCCESS[0])
+chk_g_mastered.pack(side="right")
+
 current_item, current_type = None, None
 
 def refresh_lists():
@@ -1027,45 +1515,49 @@ def select_item(word, item_type):
     target_scroll.refresh_item(word)
     
     frame_welcome.pack_forget()
-    detail_container.pack(fill="both", expand=True, padx=40, pady=20)
-    
-    title_text = word if item_type == 'grammar' else word.lower()
-    if detail.get('is_mastered', 0):
-        title_text += " ✅"
-        
-    lbl_title.configure(text=title_text)
-    lbl_vn.configure(text=detail['vn_meaning'].capitalize() if detail['vn_meaning'] else "")
-    lbl_pos_text.configure(text=detail['pos'])
-    lbl_ex.configure(text=f'"{detail["sentence"]}"')
-    lbl_stats.configure(text=f"🔥 Số lần: {detail['study_count']}  •  🕒 Lần cuối: {detail['last_studied']}")
-    lbl_ex_vn.configure(text="")
-    
-    check_mastered_var.set(detail.get('is_mastered', 0))
-    
-    lbl_alert.pack_forget()
-    if detail['study_count'] >= 10 and detail['last_studied'] and (datetime.now() - datetime.strptime(detail['last_studied'], "%Y-%m-%d %H:%M")).days >= 3 and not detail.get('is_mastered', 0):
-        lbl_alert.configure(text="🚨 Cảnh báo: Mục này lâu rồi chưa ôn lại!")
-        lbl_alert.pack(anchor="w", padx=25, pady=(10, 0))
-    txt_note.delete("1.0", "end")
-    txt_note.insert("1.0", detail.get("custom_sentence", ""))
     
     if item_type == 'grammar':
-        btn_uk.pack_forget()
-        btn_us.pack_forget()
-        ex_audio_frame.pack_forget()
-        safe_set_image(lbl_img, new_image=None, new_text="[ Ngữ Pháp ]")
+        detail_container.pack_forget()
+        grammar_detail_container.pack(fill="both", expand=True)
+        
+        title_text = word
+        if detail.get('is_mastered', 0): title_text += " ✅"
+        lbl_grammar_title.configure(text=title_text)
+        txt_grammar_theory.delete("1.0", "end")
+        txt_grammar_theory.insert("1.0", detail['vn_meaning'])
+        
+        main_buddy.say(f"Đang xem:\nNgữ Pháp TOEIC\nĐọc kỹ lý thuyết nhé!")
     else:
-        btn_uk.pack_forget()
-        btn_us.pack_forget()
-        btn_uk.pack(side="right", pady=25, padx=(10, 25))
-        btn_us.pack(side="right", pady=25)
+        grammar_detail_container.pack_forget()
+        detail_container.pack(fill="both", expand=True, padx=40, pady=20)
+        
+        title_text = word.lower()
+        if detail.get('is_mastered', 0):
+            title_text += " ✅"
+            
+        lbl_title.configure(text=title_text)
+        lbl_vn.configure(text=detail['vn_meaning'].capitalize() if detail['vn_meaning'] else "")
+        lbl_pos_text.configure(text=detail['pos'])
+        lbl_ex.configure(text=f'"{detail["sentence"]}"')
+        lbl_stats.configure(text=f"🔥 Số lần: {detail['study_count']}  •  🕒 Lần cuối: {detail['last_studied']}")
+        lbl_ex_vn.configure(text="")
+        
+        check_mastered_var.set(detail.get('is_mastered', 0))
+        
+        lbl_alert.pack_forget()
+        if detail['study_count'] >= 10 and detail['last_studied'] and (datetime.now() - datetime.strptime(detail['last_studied'], "%Y-%m-%d %H:%M")).days >= 3 and not detail.get('is_mastered', 0):
+            lbl_alert.configure(text="🚨 Cảnh báo: Mục này lâu rồi chưa ôn lại!")
+            lbl_alert.pack(anchor="w", padx=25, pady=(10, 0))
+        txt_note.delete("1.0", "end")
+        txt_note.insert("1.0", detail.get("custom_sentence", ""))
+        
         ex_audio_frame.pack_forget()
         ex_audio_frame.pack(anchor="w", padx=25)
         safe_set_image(lbl_img, new_image=None, new_text="Đang tìm ảnh...")
         play_sound_system(word)
         load_image_async(word, lbl_img)
     
-    main_buddy.say(f"Đang xem:\n{word.upper() if len(word) < 15 else 'NGỮ PHÁP'}\nCố lên nhé!")
+        main_buddy.say(f"Đang xem:\n{word.upper()}\nCố lên nhé!")
 
 class AddGrammarDialog(ctk.CTkToplevel):
     def __init__(self, master):
@@ -1138,7 +1630,6 @@ def item_delete_cmd():
     global current_item, current_type
     if current_item and messagebox.askyesno("Xóa", f"Xóa '{current_item}'?"):
         data_manager.delete(current_item, current_type)
-        detail_container.pack_forget(); frame_welcome.pack(expand=True)
         detail_container.pack_forget(); grammar_detail_container.pack_forget(); frame_welcome.pack(expand=True)
         refresh_lists()
         current_item, current_type = None, None
@@ -1164,14 +1655,17 @@ pf.pack(anchor="w", pady=(10,0))
 lbl_pos_text = ctk.CTkLabel(pf, text="", font=("Segoe UI", 13, "bold"), text_color="white")
 lbl_pos_text.pack(padx=12, pady=4)
 
-ctk.CTkButton(c1, text="🔊 Anh-Anh", width=100, height=45, corner_radius=12, fg_color=BG_MAIN, border_width=1, border_color=BORDER_COLOR, text_color=("black", "white"), hover_color=HOVER_COLOR_CARD, command=lambda: play_sound_system(current_item, tld='co.uk') if current_item else None).pack(side="right", pady=25, padx=(10, 25))
-ctk.CTkButton(c1, text="🔊 Anh-Mỹ", width=100, height=45, corner_radius=12, fg_color=BG_MAIN, border_width=1, border_color=BORDER_COLOR, text_color=("black", "white"), hover_color=HOVER_COLOR_CARD, command=lambda: play_sound_system(current_item, tld='com') if current_item else None).pack(side="right", pady=25)
+btn_uk = ctk.CTkButton(c1, text="🔊 Anh-Anh", width=100, height=45, corner_radius=12, fg_color=BG_MAIN, border_width=1, border_color=BORDER_COLOR, text_color=("black", "white"), hover_color=HOVER_COLOR_CARD, command=lambda: play_sound_system(current_item, tld='co.uk') if current_item else None)
+btn_uk.pack(side="right", pady=25, padx=(10, 25))
+btn_us = ctk.CTkButton(c1, text="🔊 Anh-Mỹ", width=100, height=45, corner_radius=12, fg_color=BG_MAIN, border_width=1, border_color=BORDER_COLOR, text_color=("black", "white"), hover_color=HOVER_COLOR_CARD, command=lambda: play_sound_system(current_item, tld='com') if current_item else None)
+btn_us.pack(side="right", pady=25)
 
 def toggle_mastered():
     if current_item:
-        val = 1 if check_mastered_var.get() else 0
+        val = 1 if (check_g_mastered_var.get() if current_type == 'grammar' else check_mastered_var.get()) else 0
         data_manager.update_field(current_item, current_type, 'is_mastered', val)
-        (scroll_vocab if current_type == 'vocab' else scroll_phrase).refresh_item(current_item)
+        target_scroll = scroll_grammar if current_type == 'grammar' else (scroll_vocab if current_type == 'vocab' else scroll_phrase)
+        target_scroll.refresh_item(current_item)
 
 check_mastered_var = ctk.IntVar()
 chk_mastered = ctk.CTkCheckBox(c1, text="Đã thuộc", variable=check_mastered_var, command=toggle_mastered, font=("Segoe UI", 15, "bold"), text_color=COLOR_SUCCESS[0], hover_color="#28a745", fg_color=COLOR_SUCCESS[0])
@@ -1529,6 +2023,7 @@ class QuizGameWindow(BaseGameWindow):
             self.score += 1
             play_sound_system(cw)
         else: 
+            data_manager.log_mistake(cw, ty)
             messagebox.showerror("Sai rồi", f"Đáp án đúng là:\n{cw.upper()}")
         self.current_idx += 1
         self.load()
@@ -1628,6 +2123,7 @@ class SurvivalGameWindow(BaseGameWindow):
             play_sound_system(self.current_word)
             self.next_round()
         else:
+            data_manager.log_mistake(self.current_word, self.current_type)
             self.btn_opts[idx].configure(fg_color=COLOR_DANGER[0])
             self.lose_life()
 
@@ -1763,6 +2259,7 @@ class RPGBossGameWindow(BaseGameWindow):
             self.boss_hp_bar.set(max(0, self.boss_hp / self.boss_max_hp))
             self.after(1000, lambda: [self.lbl_player.configure(text="🤺"), self.next_round()])
         else:
+            data_manager.log_mistake(self.current_word, 'vocab')
             self.player_hp -= 1
             self.lbl_php.configure(text="❤️" * self.player_hp)
             self.lbl_console.configure(text="Đánh trượt! Bị quái phản công!", text_color="#FF3B30")
@@ -1865,6 +2362,8 @@ class InvadersGameWindow(BaseGameWindow):
             
             # Nếu phi thuyền chạm đất
             if e['y'] > self.canvas_height - 40:
+                if e['word'] == self.target_word:
+                    data_manager.log_mistake(self.target_word, self.target_type)
                 self.lose_life("QUÁI VẬT ĐÃ CHẠM ĐẤT!")
                 return
                 
@@ -1901,6 +2400,7 @@ class InvadersGameWindow(BaseGameWindow):
                     self.after(300, lambda: [self.canvas.delete(e['ship']), self.canvas.delete(e['txt']), self.spawn_wave()])
                 else:
                     # Bắn SAI!
+                    data_manager.log_mistake(self.target_word, self.target_type)
                     self.lose_life("BẮN NHẦM ĐỒNG MINH!")
 
     def lose_life(self, reason):
@@ -1996,6 +2496,7 @@ class NinjaGameWindow(BaseGameWindow):
             self.after(800, self.next_round)
         else:
             # Nhảy sai (Rơi xuống)
+            data_manager.log_mistake(self.current_word, 'vocab')
             self.bricks[idx].configure(fg_color="#FF0000", text="VỠ 💥") 
             self.lbl_ninja.configure(text="👻") 
             self.lbl_guide.configure(text=f"SAI RỒI! TỪ ĐÓ NGHĨA LÀ: {self.correct_meaning.upper()}", text_color="white", fg_color="red")
@@ -2065,6 +2566,7 @@ class ScrambleGameWindow(BaseGameWindow):
             self.score += 1
             play_sound_system(cw)
         else: 
+            data_manager.log_mistake(cw, ty)
             messagebox.showerror("Sai rồi", f"Chính tả đúng phải là:\n{cw.upper()}")
         self.current_idx += 1
         self.load()
@@ -2121,6 +2623,7 @@ class DictationGameWindow(BaseGameWindow):
             self.score += 1
             play_sound_system(cw)
         else: 
+            data_manager.log_mistake(cw, ty)
             messagebox.showerror("Sai rồi", f"Từ đúng phải là:\n{cw.upper()}")
         self.current_idx += 1
         self.load()
@@ -2339,6 +2842,7 @@ class MatchGameWindow(ctk.CTkToplevel):
                     refresh_lists()
                     self.destroy()
             else:
+                data_manager.log_mistake(self.sel_en, 'vocab')
                 messagebox.showerror("Sai", "Hai thẻ này không khớp nhau!")
                 
             self.sel_en = self.sel_vi = None
@@ -3137,6 +3641,49 @@ class AutoLearnWindow(ctk.CTkToplevel):
         refresh_lists()
         self.destroy()
 
+class MistakesWindow(ctk.CTkToplevel):
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("Sổ Tay Lỗi Sai")
+        self.geometry("600x500")
+        self.transient(master)
+        self.grab_set()
+
+        card = ctk.CTkFrame(self, corner_radius=16, fg_color=BG_CARD, border_width=1, border_color=BORDER_COLOR)
+        card.pack(fill="both", expand=True, padx=20, pady=20)
+        ctk.CTkLabel(card, text="📓 SỔ TAY LỖI SAI", font=("Segoe UI", 20, "bold"), text_color=COLOR_DANGER[0]).pack(pady=(15, 10))
+        ctk.CTkLabel(card, text="Những từ bạn đã làm sai trong lúc chơi game ôn tập.", font=FONT_BODY, text_color=TEXT_SUB).pack(pady=(0, 10))
+
+        self.scroll_frame = ctk.CTkScrollableFrame(card, fg_color=BG_MAIN, corner_radius=12)
+        self.scroll_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        self.load_data()
+        ctk.CTkButton(card, text="Đóng", width=100, fg_color="transparent", border_width=1, text_color=TEXT_SUB, command=self.destroy).pack(pady=10)
+
+    def load_data(self):
+        for w in self.scroll_frame.winfo_children():
+            w.destroy()
+
+        mistakes = data_manager.get_mistakes()
+        if not mistakes:
+            ctk.CTkLabel(self.scroll_frame, text="Tuyệt vời! Bạn chưa mắc lỗi sai nào.", font=("Segoe UI", 16, "italic"), text_color=COLOR_SUCCESS[0]).pack(pady=40)
+            return
+
+        for word, item_type, count, last_time in mistakes:
+            row = ctk.CTkFrame(self.scroll_frame, fg_color=BG_CARD, corner_radius=8, border_width=1, border_color=BORDER_COLOR)
+            row.pack(fill="x", pady=5, padx=5)
+            info_frame = ctk.CTkFrame(row, fg_color="transparent")
+            info_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+            ctk.CTkLabel(info_frame, text=word.capitalize(), font=("Segoe UI", 16, "bold"), text_color=COLOR_ACCENT).pack(anchor="w")
+            ctk.CTkLabel(info_frame, text=f"Loại: {item_type.capitalize()} • Sai {count} lần • Lần cuối: {last_time}", font=("Segoe UI", 12), text_color=TEXT_SUB).pack(anchor="w")
+            btn_del = ctk.CTkButton(row, text="Xóa", width=60, fg_color="transparent", border_width=1, text_color=COLOR_DANGER[0], border_color=COLOR_DANGER[0], hover_color=HOVER_COLOR_TRANSPARENT, command=lambda w=word, t=item_type: self.remove_mistake(w, t))
+            btn_del.pack(side="right", padx=10)
+
+    def remove_mistake(self, word, item_type):
+        if messagebox.askyesno("Xóa", f"Xóa '{word}' khỏi sổ tay?"):
+            data_manager.remove_mistake(word, item_type)
+            self.load_data()
+
 def open_auto_learn():
     dialog = AutoLearnSetupDialog(app)
     if dialog.result_time and dialog.result_data:
@@ -3197,6 +3744,7 @@ class ClozeGameWindow(BaseGameWindow):
             data_manager.update_progress(cw, self.questions[self.current_idx]['item_type'])
             play_sound_system(cw)
         else:
+            data_manager.log_mistake(cw, self.questions[self.current_idx]['item_type'])
             messagebox.showerror("Sai rồi", f"Từ cần điền là:\n{cw.upper()}")
         self.current_idx += 1
         self.load()
@@ -3307,6 +3855,7 @@ class HangmanGameWindow(BaseGameWindow):
             self.lives -= 1
             self.update_lives_display()
             if self.lives <= 0:
+                data_manager.log_mistake(self.word, self.ty)
                 self.is_transitioning = True
                 self.lbl_word.configure(text=" ".join(list(self.word.upper())))
                 play_sound_system("Oops")
