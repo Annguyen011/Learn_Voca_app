@@ -1,7 +1,7 @@
 ﻿import sys
 import os
 import customtkinter as ctk
-
+import queue
 # --- MÀN HÌNH SPLASH (INTRO & LOADING) CHẠY ĐẦU TIÊN ---
 app = ctk.CTk()
 app.withdraw() # Ẩn cửa sổ chính trong lúc load
@@ -138,7 +138,39 @@ class DataManager:
         self.tracker = {} # {date: set(words)}
         self._init_db()
         self._load_to_ram()
-
+        self._write_queue = queue.Queue()
+        self._writer_thread = threading.Thread(target=self._db_writer, daemon=True)
+        self._writer_thread.start()
+        self._stats_cache = {'total_reps': 0, 'is_withered': False, 'streak': 0}
+        self._stats_cache_time = 0
+    def _db_writer(self):
+        batch = []
+        while True:
+            try:
+                item = self._write_queue.get(timeout=1)
+                batch.append(item)
+            except queue.Empty:
+                if batch:
+                    with DB_LOCK:
+                        conn = sqlite3.connect(DB_PATH)
+                        cur = conn.cursor()
+                        for sql, params in batch:
+                            cur.execute(sql, params)
+                        conn.commit()
+                        conn.close()
+                    batch.clear()
+                continue
+            if len(batch) >= 50:
+                with DB_LOCK:
+                    conn = sqlite3.connect(DB_PATH)
+                    cur = conn.cursor()
+                    for sql, params in batch:
+                        cur.execute(sql, params)
+                    conn.commit()
+                    conn.close()
+                batch.clear()
+    def _queue_update(self, sql, params):
+        self._write_queue.put((sql, params))
     def _init_db(self):
         with DB_LOCK:
             conn = sqlite3.connect(DB_PATH)
@@ -682,28 +714,25 @@ class DataManager:
                     conn.execute(f"UPDATE {item_type} SET last_studied=? WHERE word=?", (now_str, word))
                 conn.commit()
                 conn.close()
-        executor.submit(save_to_db)
+        self._queue_update(f"UPDATE {item_type} SET study_count=?, last_studied=? WHERE word=?", (d[word]['study_count'], now_str, word))
+        self._queue_update("INSERT OR IGNORE INTO daily_tracker (date, word) VALUES (?,?)", (today, word))
         return increased
 
     def add_or_update(self, word, item_type, sentence, pos, vn_meaning, custom_sentence="", sync_db=True):
         d = self._get_dict(item_type)
-        if word in d:
-            d[word].update({'sentence': sentence, 'pos': pos, 'vn_meaning': vn_meaning, 'custom_sentence': custom_sentence})
-        else:
+        is_new = word not in d
+        if is_new:
             d[word] = {'sentence': sentence, 'pos': pos, 'vn_meaning': vn_meaning, 'last_studied': "", 'study_count': 0, 'custom_sentence': custom_sentence, 'item_type': item_type, 'is_mastered': 0}
+        else:
+            d[word].update({'sentence': sentence, 'pos': pos, 'vn_meaning': vn_meaning, 'custom_sentence': custom_sentence})
         
         if sync_db:
-            def save_to_db():
-                with DB_LOCK:
-                    conn = sqlite3.connect(DB_PATH)
-                    c = conn.cursor()
-                    if c.execute(f"SELECT 1 FROM {item_type} WHERE word=?", (word,)).fetchone():
-                        conn.execute(f"UPDATE {item_type} SET sentence=?, pos=?, vn_meaning=?, custom_sentence=? WHERE word=?", (sentence, pos, vn_meaning, custom_sentence, word))
-                    else:
-                        conn.execute(f"INSERT INTO {item_type} (word, sentence, pos, vn_meaning, custom_sentence, last_studied, study_count, is_mastered) VALUES (?,?,?,?,?,?,?,?)", (word, sentence, pos, vn_meaning, custom_sentence, "", 0, 0))
-                    conn.commit()
-                    conn.close()
-            executor.submit(save_to_db)
+            if is_new:
+                self._queue_update(f"INSERT INTO {item_type} (word, sentence, pos, vn_meaning, custom_sentence, last_studied, study_count, is_mastered) VALUES (?,?,?,?,?,?,?,?)", 
+                                   (word, sentence, pos, vn_meaning, custom_sentence, "", 0, 0))
+            else:
+                self._queue_update(f"UPDATE {item_type} SET sentence=?, pos=?, vn_meaning=?, custom_sentence=? WHERE word=?", 
+                                   (sentence, pos, vn_meaning, custom_sentence, word))
 
     def update_field(self, word, item_type, field, value):
         d = self._get_dict(item_type)
@@ -720,14 +749,14 @@ class DataManager:
         d = self._get_dict(item_type)
         if word in d:
             del d[word]
-            def save_to_db():
-                with DB_LOCK:
-                    conn = sqlite3.connect(DB_PATH)
-                    conn.execute(f"DELETE FROM {item_type} WHERE word=?", (word,))
-                    conn.commit(); conn.close()
-            executor.submit(save_to_db)
+            self._queue_update(f"DELETE FROM {item_type} WHERE word=?", (word,))
     
-    def get_user_stats(self):
+    def get_user_stats(self, force=False):
+        now = time.time()
+        if not force and now - self._stats_cache_time < 5:
+                return (self._stats_cache['total_reps'], 
+                        self._stats_cache['is_withered'], 
+                        self._stats_cache['streak'])
         # Tính tổng số lần tưới cây (tổng study_count)
         total_reps = sum(v['study_count'] for v in self.vocab.values()) + sum(v['study_count'] for v in self.phrase.values()) + sum(v['study_count'] for v in self.grammar.values())
         
@@ -761,7 +790,8 @@ class DataManager:
         while check_date.strftime("%Y-%m-%d") in self.tracker:
             streak += 1
             check_date -= timedelta(days=1)
-            
+        self._stats_cache = {'total_reps': total_reps, 'is_withered': is_withered, 'streak': streak}
+        self._stats_cache_time = now
         return total_reps, is_withered, streak
 
     def log_mistake(self, word, item_type):
@@ -1071,7 +1101,7 @@ class VirtualScrollList(ctk.CTkFrame):
     def schedule_redraw(self):
         if not self._redraw_pending:
             self._redraw_pending = True
-            self.after(5, self.redraw)
+            self.after(1, self.redraw) # Tối ưu: Dùng after(1) thay vì after_idle để ép GUI cập nhật chữ ngay lập tức, chống lag khi cuộn nhanh
 
     def init_pool(self):
         for _ in range(self.pool_size):
@@ -1156,23 +1186,49 @@ class VirtualScrollList(ctk.CTkFrame):
         self.schedule_redraw()
     
     def redraw(self):
+        try:
+            if not self.winfo_exists():   # thêm dòng này để tránh lỗi khi cửa sổ đã đóng
+                return
+        except Exception:
+            return
+            
         self._redraw_pending = False
-        view_top = self.canvas.canvasy(0)
-        first = max(0, int(view_top // self.item_height))
-        last = min(len(self.items), first + self.pool_size)
         
-        active_pool_indices = set()
+        # Tối ưu: Đưa các biến hay dùng vào local variable (Cache biến) để tăng tốc độ truy xuất trong Python
+        items = self.items
+        num_items = len(items)
+        pool_size = self.pool_size
+        row_pool = self.row_pool
+        canvas = self.canvas
+        item_height = self.item_height
+        is_grammar = (self.item_type == 'grammar')
         
         # Tối ưu siêu cấp 4: Không gọi thư viện xử lý DateTime trong vòng lặp Render
         three_days_ago_str = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
         
+        if num_items == 0:
+            # Khi danh sách trống, giấu toàn bộ các dòng nhanh chóng
+            for row in row_pool:
+                if row['data_idx'] != -1:
+                    canvas.coords(row['id'], 0, -1000)
+                    row['data_idx'] = -1
+                    row['_last_y'] = -1000
+            return
+            
+        view_top = canvas.canvasy(0)
+        first = max(0, int(view_top // item_height))
+        last = min(num_items, first + pool_size)
+        
+        # Dùng mảng cố định cực nhanh thay vì tạo set() liên tục trong vòng lặp render 60FPS
+        active_pool = [False] * pool_size
+        
         for data_idx in range(first, last):
-            pool_idx = data_idx % self.pool_size
-            active_pool_indices.add(pool_idx)
-            row = self.row_pool[pool_idx]
+            pool_idx = data_idx % pool_size
+            active_pool[pool_idx] = True
+            row = row_pool[pool_idx]
             
             if row['data_idx'] != data_idx:
-                word, vn_meaning, study_count, last_studied, is_mastered = self.items[data_idx]
+                word, vn_meaning, study_count, last_studied, is_mastered = items[data_idx]
                 is_old = False
                 if last_studied and not is_mastered:
                     # So sánh chuỗi ngày (vd "2023-10-01" <= "2023-10-04") nhanh gấp 100 lần parse date
@@ -1181,19 +1237,18 @@ class VirtualScrollList(ctk.CTkFrame):
                 
                 # Tối ưu siêu cấp 3: Tải lại thuộc tính từ Cache RAM thay vì gọi .cget() của Tkinter
                 if is_mastered:
-                    if row['_text_icon'] != "✅":
-                        row['icon'].configure(text="✅", text_color=COLOR_SUCCESS[0])
-                        row['_text_icon'] = "✅"
-                        row['_col_icon'] = COLOR_SUCCESS[0]
+                    t_icon = "✅"
+                    t_col = COLOR_SUCCESS[0]
                 else:
                     t_icon = "⚠" if is_old else "✦"
                     t_col = COLOR_DANGER[0] if is_old else COLOR_ACCENT
-                    if row['_text_icon'] != t_icon or row['_col_icon'] != t_col:
-                        row['icon'].configure(text=t_icon, text_color=t_col)
-                        row['_text_icon'] = t_icon
-                        row['_col_icon'] = t_col
                     
-                if self.item_type == 'grammar':
+                if row['_text_icon'] != t_icon or row['_col_icon'] != t_col:
+                    row['icon'].configure(text=t_icon, text_color=t_col)
+                    row['_text_icon'] = t_icon
+                    row['_col_icon'] = t_col
+                    
+                if is_grammar:
                     t_word = word
                     t_vn = "📖 Chủ điểm Ngữ Pháp TOEIC"
                 else:
@@ -1220,16 +1275,18 @@ class VirtualScrollList(ctk.CTkFrame):
 
                 row['data_idx'] = data_idx
             
-            target_y = data_idx * self.item_height
+            target_y = data_idx * item_height
             if row['_last_y'] != target_y:
-                self.canvas.coords(row['id'], 0, target_y)
+                canvas.coords(row['id'], 0, target_y)
                 row['_last_y'] = target_y
             
-        for i in range(self.pool_size):
-            if i not in active_pool_indices and self.row_pool[i]['data_idx'] != -1:
-                self.canvas.coords(self.row_pool[i]['id'], 0, -1000)
-                self.row_pool[i]['data_idx'] = -1
-                self.row_pool[i]['_last_y'] = -1000
+        for i in range(pool_size):
+            if not active_pool[i]:
+                row = row_pool[i]
+                if row['data_idx'] != -1:
+                    canvas.coords(row['id'], 0, -1000)
+                    row['data_idx'] = -1
+                    row['_last_y'] = -1000
                 
     def refresh_item(self, word):
         detail = data_manager.get_detail(word, self.item_type)
@@ -1264,12 +1321,44 @@ def toggle_pomodoro():
     global pomodoro_frame_instance
     if pomodoro_frame_instance is None:
         pomodoro_frame_instance = PomodoroFrame(main_view)
+        main_buddy.place_forget()
         pomodoro_frame_instance.pack(side="right", fill="y", padx=(0, 20), pady=20)
     else:
         if pomodoro_frame_instance.winfo_ismapped():
             pomodoro_frame_instance.pack_forget()
+            main_buddy.place(relx=0.98, rely=0.98, anchor="se")
         else:
+            main_buddy.place_forget()
             pomodoro_frame_instance.pack(side="right", fill="y", padx=(0, 20), pady=20)
+
+class AddGrammarDialog(ctk.CTkToplevel):
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("Thêm Ngữ Pháp TOEIC")
+        self.geometry("450x450")
+        self.transient(master)
+        self.grab_set()
+        ctk.CTkLabel(self, text="📚 THÊM NGỮ PHÁP", font=("Segoe UI", 20, "bold"), text_color=COLOR_ACCENT).pack(pady=20)
+        self.entry_title = ctk.CTkEntry(self, placeholder_text="Tên chủ điểm (VD: Câu bị động)", font=FONT_BODY, height=40)
+        self.entry_title.pack(fill="x", padx=30, pady=10)
+        self.entry_meaning = ctk.CTkTextbox(self, height=100, font=FONT_BODY)
+        self.entry_meaning.insert("1.0", "Giải thích cấu trúc và cách dùng...")
+        self.entry_meaning.pack(fill="x", padx=30, pady=10)
+        self.entry_ex = ctk.CTkEntry(self, placeholder_text="Câu ví dụ", font=FONT_BODY, height=40)
+        self.entry_ex.pack(fill="x", padx=30, pady=10)
+        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        btn_frame.pack(pady=20)
+        ctk.CTkButton(btn_frame, text="Hủy", width=100, fg_color="transparent", border_width=1, command=self.destroy).pack(side="left", padx=10)
+        ctk.CTkButton(btn_frame, text="Lưu", width=100, fg_color=COLOR_SUCCESS[0], hover_color="#28a745", command=self.save).pack(side="left", padx=10)
+
+    def save(self):
+        title = self.entry_title.get().strip()
+        meaning = self.entry_meaning.get("1.0", "end-1c").strip()
+        ex = self.entry_ex.get().strip()
+        if not title: messagebox.showerror("Lỗi", "Vui lòng nhập tên chủ điểm!"); return
+        if title == "Giải thích cấu trúc và cách dùng...": meaning = ""
+        data_manager.add_or_update(title, 'grammar', ex, "Ngữ Pháp", meaning, "")
+        refresh_lists(); tab_view.set("Ngữ Pháp"); select_item(title, 'grammar'); self.destroy()
 
 def show_statistics(): StatisticsWindow(app)
 def backup_data():
@@ -1411,16 +1500,202 @@ scroll_grammar.pack(fill="both", expand=True)
 main_view = ctk.CTkFrame(app, corner_radius=0, fg_color=BG_MAIN)
 main_view.grid(row=1, column=1, sticky="nsew")
 
+def check_spaced_repetition(item):
+    """Thuật toán tính ngày ôn tập (Spaced Repetition)"""
+    if not item['last_studied']: return True
+    try:
+        last_date = datetime.strptime(item['last_studied'][:10], "%Y-%m-%d")
+        days_passed = (datetime.now() - last_date).days
+        c = item['study_count']
+        # Mốc thời gian: 1 ngày -> 3 ngày -> 7 ngày -> 14 ngày -> 30 ngày
+        if c <= 1: interval = 1
+        elif c == 2: interval = 3
+        elif c == 3: interval = 7
+        elif c <= 5: interval = 14
+        else: interval = 30
+        return days_passed >= interval
+    except:
+        return True
+
+def get_game_data(source_type, include_mastered=False):
+    today = datetime.now().strftime("%Y-%m-%d")
+    items = []
+    for t, data_dict in [('vocab', data_manager.vocab), ('phrase', data_manager.phrase)]:
+        for word, d in data_dict.items():
+            if not include_mastered and d.get('is_mastered', 0):
+                continue
+            item_data = {"word": word, "vn_meaning": d['vn_meaning'], "sentence": d.get('sentence', ''), "item_type": t, "last_studied": d['last_studied'], "study_count": d['study_count'], "pos": d.get('pos', '')}
+            if source_type == "Chưa ôn hôm nay":
+                # Kích hoạt Spaced Repetition ở đây
+                if check_spaced_repetition(item_data) and word not in data_manager.tracker.get(today, set()):
+                    items.append(item_data)
+            else:
+                items.append(item_data)
+                
+    if source_type == "Ngẫu nhiên":
+        random.shuffle(items)
+    else:
+        items.sort(key=lambda x: (x['study_count'], x['last_studied'] or ''))
+    return items
+
+class StudyBuddy(ctk.CTkFrame):
+    def __init__(self, master, **kwargs):
+        super().__init__(master, fg_color="transparent", **kwargs)
+        self.faces = ["(•‿•)", "(≧◡≦)", "(⌐■_■)", "(O_O)", "(^._.^)ﾉ", "ʕ•́ᴥ•̀ʔ", "(~˘▾˘)~", "(✧ω✧)"]
+        self.sleep_faces = ["(u_u) zzz", "(－_－) zzZ", "(~_~;)"]
+        self.quotes = [
+            "Uống miếng nước đi bạn!",
+            "Ngồi thẳng lưng lên nào!",
+            "Bạn đang làm rất tốt!",
+            "Học, học nữa, học mãi!",
+            "Nghỉ mắt một chút nhé!"
+        ]
+        
+        self.bubble = ctk.CTkLabel(self, text="Cố lên nhé!", fg_color=BG_CARD, corner_radius=10, 
+                                   font=("Segoe UI", 13, "bold"), text_color=COLOR_ACCENT, wraplength=180)
+        self.bubble.pack(side="top", pady=(0, 5), ipadx=10, ipady=5)
+        
+        self.pet = ctk.CTkButton(self, text=random.choice(self.faces), font=("Courier New", 22, "bold"), 
+                                 fg_color="transparent", hover_color=HOVER_COLOR_TRANSPARENT,
+                                 command=self.on_click, text_color="#FF9500", width=80)
+        self.pet.pack(side="bottom")
+        
+        self.hint_word = ""
+        self.hint_index = 0
+        self.timer_id = None
+        self.behavior_timer = None
+        self.is_sleeping = False
+        self.auto_change_face()
+        self.schedule_random_behavior()
+        
+    def auto_change_face(self):
+        if not self.winfo_exists(): return
+        if not getattr(self, 'is_sleeping', False) and random.random() > 0.4:
+            self.pet.configure(text=random.choice(self.faces))
+            self.pet.pack_configure(pady=(0, random.choice([0, 3, 6])))
+        self.after(3000, self.auto_change_face)
+        
+    def schedule_random_behavior(self):
+        if not self.winfo_exists(): return
+        self.behavior_timer = self.after(random.randint(15000, 30000), self.perform_random_behavior)
+        
+    def perform_random_behavior(self):
+        if not self.winfo_exists(): return
+        action = random.choice(["sleep", "quote", "idle"])
+        
+        if action == "sleep":
+            self.is_sleeping = True
+            self.pet.configure(text=random.choice(self.sleep_faces))
+            self.say("Mình chợp mắt tí nha...")
+        elif action == "quote":
+            self.is_sleeping = False
+            self.pet.configure(text="(🗣️ ﾟヮﾟ)")
+            self.say(random.choice(self.quotes))
+        else:
+            self.is_sleeping = False
+            self.pet.configure(text=random.choice(self.faces))
+            
+        self.schedule_random_behavior()
+
+    def on_click(self):
+        self.is_sleeping = False
+        self.play_pet_sound()
+        self.pet.configure(text=random.choice(self.faces))
+        if self.hint_word:
+            if self.hint_index < len(self.hint_word):
+                revealed = self.hint_word[:self.hint_index+1]
+                hidden = "_" * (len(self.hint_word) - self.hint_index - 1)
+                self.say(f"Gợi ý nè:\n{revealed.upper()}{hidden}")
+                self.hint_index += 1
+            else:
+                self.say(f"Đáp án là:\n{self.hint_word.upper()}")
+        else:
+            self.say(random.choice(["Ái da! Chọc mình hả?", "Học đi không rớt môn giờ!", "Nước chảy đá mòn!", "Có công mài sắt có ngày nên kim!", "Fighting!"]))
+            
+    def play_pet_sound(self):
+        try:
+            if sys.platform == "win32":
+                import winsound
+                winsound.MessageBeep(winsound.MB_OK)
+        except:
+            pass
+
+    def say(self, text):
+        self.bubble.configure(text=text)
+        if self.timer_id: self.after_cancel(self.timer_id)
+        if not text.startswith("Gợi ý"):
+            self.timer_id = self.after(5000, lambda: self.bubble.configure(text="Cần nhắc bài? Bấm vào mình!"))
+            
+    def set_hint_word(self, word):
+        self.hint_word = word
+        self.hint_index = 0
+        self.say("Cần nhắc bài? Bấm vào mình nha!")
+
+main_buddy = StudyBuddy(main_view)
+main_buddy.place(relx=0.98, rely=0.98, anchor="se")
+
 # --- TRỒNG CÂY TỪ VỰNG Ở MÀN HÌNH CHÍNH ---
 frame_welcome = ctk.CTkFrame(main_view, fg_color="transparent")
-frame_welcome.pack(expand=True)
+frame_welcome.pack(expand=True, fill="both", padx=20, pady=20)
 
-lbl_tree_icon = ctk.CTkLabel(frame_welcome, text="🌱", font=("Segoe UI", 120))
+tree_frame = ctk.CTkFrame(frame_welcome, fg_color="transparent")
+tree_frame.pack(pady=(20, 10))
+
+lbl_tree_icon = ctk.CTkLabel(tree_frame, text="🌱", font=("Segoe UI", 120))
 lbl_tree_icon.pack(pady=10)
-lbl_tree_msg = ctk.CTkLabel(frame_welcome, text="Học từ mới để tưới cây nhé!", font=("Segoe UI", 24, "bold"))
+lbl_tree_msg = ctk.CTkLabel(tree_frame, text="Học từ mới để tưới cây nhé!", font=("Segoe UI", 24, "bold"))
 lbl_tree_msg.pack()
-lbl_tree_progress = ctk.CTkLabel(frame_welcome, text="Giọt nước: 0", font=("Segoe UI", 16), text_color=TEXT_SUB)
+lbl_tree_progress = ctk.CTkLabel(tree_frame, text="Giọt nước: 0", font=("Segoe UI", 16), text_color=TEXT_SUB)
 lbl_tree_progress.pack(pady=5)
+
+home_chart_frame = ctk.CTkFrame(frame_welcome, corner_radius=16, fg_color=BG_CARD, border_width=1, border_color=BORDER_COLOR)
+home_chart_frame.pack(fill="both", expand=True, padx=40, pady=20)
+
+ctk.CTkLabel(home_chart_frame, text="📈 Tiến độ học tập 7 ngày qua", font=("Segoe UI", 16, "bold")).pack(anchor="w", padx=20, pady=(15, 0))
+canvas_home_chart = ctk.CTkCanvas(home_chart_frame, highlightthickness=0, bg=BG_CARD[1])
+canvas_home_chart.pack(fill="both", expand=True, padx=20, pady=(10, 20))
+
+last_home_chart_w, last_home_chart_h = 0, 0
+def draw_home_chart(*args):
+    global last_home_chart_w, last_home_chart_h
+    if not canvas_home_chart.winfo_exists():   # thêm dòng này để tránh lỗi khi cửa sổ đã đóng
+        return
+        
+    w, h = canvas_home_chart.winfo_width(), canvas_home_chart.winfo_height()
+    if w < 50 or h < 50: return
+    
+    if args and hasattr(args[0], 'width'):
+        if w == last_home_chart_w and h == last_home_chart_h: return
+        last_home_chart_w, last_home_chart_h = w, h
+
+    canvas_home_chart.delete("all")
+    bg_color = BG_CARD[1] if ctk.get_appearance_mode() == "Dark" else BG_CARD[0]
+    canvas_home_chart.configure(bg=bg_color)
+    
+    last_7_days = [(datetime.now() - timedelta(days=i)) for i in range(6, -1, -1)]
+    counts = [len(data_manager.tracker.get(d.strftime("%Y-%m-%d"), set())) for d in last_7_days]
+    max_val = max(counts) if max(counts) > 0 else 10
+    
+    pad_x, pad_y, usable_w, usable_h = 40, 30, w - 80, h - 60
+    grid_color = "#3A3A45" if ctk.get_appearance_mode() == "Dark" else "#D1D8E5"
+    text_color = TEXT_SUB[1] if ctk.get_appearance_mode() == "Dark" else TEXT_SUB[0]
+    
+    for i in range(4):
+        y_line = h - pad_y - (i / 3) * usable_h
+        canvas_home_chart.create_line(pad_x, y_line, w - pad_x, y_line, fill=grid_color, dash=(4, 4))
+        
+    points = [(pad_x + (i / 6) * usable_w, h - pad_y - (count / max_val) * usable_h) for i, count in enumerate(counts)]
+    flat_coords = [coord for pt in points for coord in pt]
+    if len(flat_coords) >= 4:
+        line_color = COLOR_ACCENT[1] if ctk.get_appearance_mode() == "Dark" else COLOR_ACCENT[0]
+        canvas_home_chart.create_line(*flat_coords, fill=line_color, width=3)
+    
+    for i, (x, y) in enumerate(points):
+        canvas_home_chart.create_oval(x-6, y-6, x+6, y+6, fill=COLOR_SUCCESS[0], outline=bg_color, width=3)
+        canvas_home_chart.create_text(x, y-18, text=str(counts[i]), fill=text_color, font=("Segoe UI", 10, "bold"))
+        canvas_home_chart.create_text(x, h-10, text=last_7_days[i].strftime("%d/%m"), fill=text_color, font=("Segoe UI", 10))
+
+canvas_home_chart.bind("<Configure>", draw_home_chart)
 
 def update_home_screen():
     total_reps, is_withered, streak = data_manager.get_user_stats()
@@ -1440,16 +1715,14 @@ def update_home_screen():
     else:
         icon, msg, color = "🌱", "Gieo mầm từ vựng!", COLOR_ACCENT
         
+    percent = min(100, int((total_reps / 500) * 100))
     lbl_tree_icon.configure(text=icon)
     lbl_tree_msg.configure(text=msg, text_color=color)
-    lbl_tree_progress.configure(text=f"💧 Tổng số lần đã học (Giọt nước): {total_reps}")
+    lbl_tree_progress.configure(text=f"💧 Tổng số lần đã học (Giọt nước): {total_reps} ({percent}%)")
+    draw_home_chart()
 
 # Gọi hàm này khi khởi động app
 update_home_screen()
-ctk.CTkLabel(frame_welcome, text="📚", font=("Segoe UI", 70)).pack(pady=10)
-ctk.CTkLabel(frame_welcome, text="Học thôi nào!", font=("Segoe UI", 24, "bold")).pack()
-
-main_buddy = None  # Khởi tạo phía dưới
 
 detail_container = ctk.CTkScrollableFrame(main_view, fg_color="transparent")
 
@@ -1493,8 +1766,6 @@ btn_grammar_save.pack(side="left")
 check_g_mastered_var = ctk.IntVar()
 chk_g_mastered = ctk.CTkCheckBox(gf_btns, text="Đã nắm vững", variable=check_g_mastered_var, command=lambda: toggle_mastered(), font=("Segoe UI", 15, "bold"), text_color=COLOR_SUCCESS[0])
 chk_g_mastered.pack(side="right")
-
-current_item, current_type = None, None
 
 def refresh_lists():
     scroll_vocab.load_data()
@@ -1716,139 +1987,6 @@ bf = ctk.CTkFrame(c3, fg_color="transparent")
 bf.pack(fill="x", padx=25, pady=(0, 25))
 ctk.CTkButton(bf, text="💾 Lưu ghi chú", height=38, corner_radius=8, font=("Segoe UI", 14, "bold"), fg_color=COLOR_SUCCESS[0], hover_color="#28a745", width=120, command=save_custom_note).pack(side="left")
 ctk.CTkButton(bf, text="🗑 Xóa Mục", height=38, corner_radius=8, fg_color="transparent", hover_color=("#FFD1D1", "#5C1A1A"), text_color=COLOR_DANGER[0], border_width=1, border_color=COLOR_DANGER[0], width=100, command=item_delete_cmd).pack(side="right")
-
-# ================== GAME ÔN TẬP (GIAO DIỆN HIỆN ĐẠI & SỬA LỖI) ==================
-def check_spaced_repetition(item):
-    """Thuật toán tính ngày ôn tập (Spaced Repetition)"""
-    if not item['last_studied']: return True
-    try:
-        last_date = datetime.strptime(item['last_studied'][:10], "%Y-%m-%d")
-        days_passed = (datetime.now() - last_date).days
-        c = item['study_count']
-        # Mốc thời gian: 1 ngày -> 3 ngày -> 7 ngày -> 14 ngày -> 30 ngày
-        if c <= 1: interval = 1
-        elif c == 2: interval = 3
-        elif c == 3: interval = 7
-        elif c <= 5: interval = 14
-        else: interval = 30
-        return days_passed >= interval
-    except:
-        return True
-
-def get_game_data(source_type, include_mastered=False):
-    today = datetime.now().strftime("%Y-%m-%d")
-    items = []
-    for t, data_dict in [('vocab', data_manager.vocab), ('phrase', data_manager.phrase)]:
-        for word, d in data_dict.items():
-            if not include_mastered and d.get('is_mastered', 0):
-                continue
-            item_data = {"word": word, "vn_meaning": d['vn_meaning'], "sentence": d.get('sentence', ''), "item_type": t, "last_studied": d['last_studied'], "study_count": d['study_count'], "pos": d.get('pos', '')}
-            if source_type == "Chưa ôn hôm nay":
-                # Kích hoạt Spaced Repetition ở đây
-                if check_spaced_repetition(item_data) and word not in data_manager.tracker.get(today, set()):
-                    items.append(item_data)
-            else:
-                items.append(item_data)
-                
-    items.sort(key=lambda x: x['study_count'])
-    return items
-
-class StudyBuddy(ctk.CTkFrame):
-    def __init__(self, master, **kwargs):
-        super().__init__(master, fg_color="transparent", **kwargs)
-        self.faces = ["(•‿•)", "(≧◡≦)", "(⌐■_■)", "(O_O)", "(^._.^)ﾉ", "ʕ•́ᴥ•̀ʔ", "(~˘▾˘)~", "(✧ω✧)"]
-        self.sleep_faces = ["(u_u) zzz", "(－_－) zzZ", "(~_~;)"]
-        self.quotes = [
-            "Uống miếng nước đi bạn!",
-            "Ngồi thẳng lưng lên nào!",
-            "Bạn đang làm rất tốt!",
-            "Học, học nữa, học mãi!",
-            "Nghỉ mắt một chút nhé!"
-        ]
-        
-        self.bubble = ctk.CTkLabel(self, text="Cố lên nhé!", fg_color=BG_CARD, corner_radius=10, 
-                                   font=("Segoe UI", 13, "bold"), text_color=COLOR_ACCENT, wraplength=180)
-        self.bubble.pack(side="top", pady=(0, 5), ipadx=10, ipady=5)
-        
-        self.pet = ctk.CTkButton(self, text=random.choice(self.faces), font=("Courier New", 22, "bold"), 
-                                 fg_color="transparent", hover_color=HOVER_COLOR_TRANSPARENT,
-                                 command=self.on_click, text_color="#FF9500", width=80)
-        self.pet.pack(side="bottom")
-        
-        self.hint_word = ""
-        self.hint_index = 0
-        self.timer_id = None
-        self.behavior_timer = None
-        self.is_sleeping = False
-        self.auto_change_face()
-        self.schedule_random_behavior()
-        
-    def auto_change_face(self):
-        if not self.winfo_exists(): return
-        if not getattr(self, 'is_sleeping', False) and random.random() > 0.4:
-            self.pet.configure(text=random.choice(self.faces))
-            # Tạo hiệu ứng nhún nhảy nhẹ
-            self.pet.pack_configure(pady=(0, random.choice([0, 3, 6])))
-        self.after(3000, self.auto_change_face)
-        
-    def schedule_random_behavior(self):
-        if not self.winfo_exists(): return
-        self.behavior_timer = self.after(random.randint(15000, 30000), self.perform_random_behavior)
-        
-    def perform_random_behavior(self):
-        if not self.winfo_exists(): return
-        action = random.choice(["sleep", "quote", "idle"])
-        
-        if action == "sleep":
-            self.is_sleeping = True
-            self.pet.configure(text=random.choice(self.sleep_faces))
-            self.say("Mình chợp mắt tí nha...")
-        elif action == "quote":
-            self.is_sleeping = False
-            self.pet.configure(text="(🗣️ ﾟヮﾟ)")
-            self.say(random.choice(self.quotes))
-        else:
-            self.is_sleeping = False
-            self.pet.configure(text=random.choice(self.faces))
-            
-        self.schedule_random_behavior()
-
-    def on_click(self):
-        self.is_sleeping = False
-        self.play_pet_sound()
-        self.pet.configure(text=random.choice(self.faces))
-        if self.hint_word:
-            if self.hint_index < len(self.hint_word):
-                revealed = self.hint_word[:self.hint_index+1]
-                hidden = "_" * (len(self.hint_word) - self.hint_index - 1)
-                self.say(f"Gợi ý nè:\n{revealed.upper()}{hidden}")
-                self.hint_index += 1
-            else:
-                self.say(f"Đáp án là:\n{self.hint_word.upper()}")
-        else:
-            self.say(random.choice(["Ái da! Chọc mình hả?", "Học đi không rớt môn giờ!", "Nước chảy đá mòn!", "Có công mài sắt có ngày nên kim!", "Fighting!"]))
-            
-    def play_pet_sound(self):
-        try:
-            if sys.platform == "win32":
-                import winsound
-                winsound.MessageBeep(winsound.MB_OK)
-        except:
-            pass
-
-    def say(self, text):
-        self.bubble.configure(text=text)
-        if self.timer_id: self.after_cancel(self.timer_id)
-        if not text.startswith("Gợi ý"):
-            self.timer_id = self.after(5000, lambda: self.bubble.configure(text="Cần nhắc bài? Bấm vào mình!"))
-            
-    def set_hint_word(self, word):
-        self.hint_word = word
-        self.hint_index = 0
-        self.say("Cần nhắc bài? Bấm vào mình nha!")
-
-main_buddy = StudyBuddy(main_view)
-main_buddy.place(relx=0.98, rely=0.98, anchor="se")
 main_buddy.say("Chào mừng!\nHôm nay học gì nào?")
 
 class GameSetupDialog(ctk.CTkToplevel):
